@@ -1,0 +1,23 @@
+Package: RegTree
+Type: Package
+Title: Regression Trees
+Version: 0.0.1
+Author: Seth Leonard
+Maintainer: Seth Leonard <seth@ottoquant.com>
+Description: Random forest for continuous variables with missing observations
+Depends: R (>= 3.5.0)
+License: (c)
+Suggests: 
+  rmarkdown,
+  knitr,
+  testthat
+Imports:
+  Rcpp (>= 0.12.13),
+  data.table (>= 1.9.8)
+LinkingTo: Rcpp, RcppArmadillo
+RoxygenNote: 7.1.1
+LazyData: true
+Encoding: UTF-8
+VignetteBuilder: knitr, rmarkdown
+
+

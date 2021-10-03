@@ -1,0 +1,3 @@
+useDynLib(RegTree)
+importFrom(Rcpp, evalCpp)
+import(data.table)

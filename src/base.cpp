@@ -15,7 +15,7 @@ arma::uvec select_rnd(arma::uword m, // number of elements
 }
 
 // [[Rcpp::export]]
-vec find_cut(arma::vec x, // predictor
+arma::vec find_cut(arma::vec x, // predictor
              arma::vec y){ // response
   uvec obs = find_finite(x);
   uvec not_obs = find_nonfinite(x);
@@ -51,7 +51,7 @@ vec find_cut(arma::vec x, // predictor
 // [[Rcpp::export]]
 arma::vec best_split(arma::mat X, // predictors
                arma::vec y, // response
-               uword n){ // number of candidates to select
+               arma::uword n){ // number of candidates to select
   // select candidates for splitting
   uvec candidates = select_rnd(X.n_cols, n); // randomly selected candidates
   mat splits(6,n); // results matrix (mean <, mean >, vol <, vol >, vol NA, cut)
@@ -59,6 +59,9 @@ arma::vec best_split(arma::mat X, // predictors
     splits.col(j) = find_cut(X.col(candidates(j)), y); // find best split for each series
   }
   vec tot_var = trans(sum(splits.rows(2,4),0)); // rows 2:4 contain variance for high, low, and NA values
+  
+  
+  
   uword min_idx = index_min(tot_var); // which series offers least variance in y
   vec out(7); // results vector 
   out(0) = candidates(min_idx); // index of the best one
@@ -100,11 +103,15 @@ arma::mat node_conditions(arma::mat Tree,
 // [[Rcpp::export]]
 arma::mat RegTree(arma::vec y, // response (no missing obs)
                    arma::mat X, // predictors (missing obs OK)
-                   uword max_nodes = 64,
+                   arma::uword max_nodes = 64,
                    double threshold = 0.01){ // required improvement in variance to continue
-  // uword k = X.n_cols;
-  // uword T = X.n_rows;
-  uword n = ceil(X.n_cols/3); // number of candidates to use at each split
+  // Bag each tree by randomly selecting observations
+  double T = X.n_rows;
+  uvec to_keep = select_rnd(T, ceil(0.632*T));
+  X = X.rows(to_keep); // this shuffles X and y but it shouldn't matter
+  y = y(to_keep);
+  double xnc = X.n_cols;
+  uword n = ceil(xnc/3); // number of candidates to use at each split
   mat Tree(max_nodes, 8, fill::zeros);
   Tree(0,5) = mean(y); // unconditional mean
   Tree(0,6) = sum(square(y-Tree(0,4))); // unconditional var
@@ -163,12 +170,16 @@ double FitVec(arma::vec x,
               arma::uword maxit = 1000){
   double j = 0; double it=0;
   while(Tree(j,7) != 1 && it<maxit){
+    if(!std::isfinite(x(Tree(j,0)))){
+      return(Tree(j,5));
+    }else{
       if(x(Tree(j,0))>Tree(j,1)){
         j = Tree(j,3);
       }else{
         j = Tree(j,2);
       }
       it++;
+    }
   }
   return(Tree(j,5));
 }
@@ -186,11 +197,11 @@ arma::vec FitMat(arma::mat X,
 
 // Draw 'draws' number of trees
 // [[Rcpp::export]]
-arma::field<mat> RegForest(arma::vec y, // response (no missing obs)
+arma::field<arma::mat> RegForest(arma::vec y, // response (no missing obs)
                            arma::mat X, // predictors (missing obs OK)
-                           uword max_nodes = 64,
+                           arma::uword max_nodes = 64,
                            double threshold = 0.01,
-                           uword draws = 500){
+                           arma::uword draws = 500){
   field<mat> Trees(draws);
   for(uword j = 0; j<draws; j++){
     Trees(j) = RegTree(y, X, max_nodes, threshold);
@@ -201,7 +212,7 @@ arma::field<mat> RegForest(arma::vec y, // response (no missing obs)
 // Fit output from RegForest
 // [[Rcpp::export]]
 arma::vec FitField(arma::mat X,
-                   arma::field<mat> Trees){
+                   arma::field<arma::mat> Trees){
   mat Mu(X.n_rows, Trees.n_elem);
   X = trans(X); //transpose for FitMat
   for(uword j=0; j<Trees.n_elem; j++){

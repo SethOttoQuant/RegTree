@@ -34,6 +34,26 @@ reg_forest <- function(y, X, max_nodes = 64, threshold = 0.02, draws = 500, step
   return(out)
 }
 
+first_split <- function(Trees, X_names = NULL){
+  idx <- sapply(Trees, function(j) j[1,1]) + 1
+  tab <- table(idx)
+  if(!is.null(X_names)) names(tab) <- X_names[as.numeric(names(tab))]
+  return(sort(tab, decreasing = TRUE))
+}
+
+get_all_splits <- function(Tree){
+  Tree <- Tree[Tree[,8] != 1, ]
+  return(Tree[,1])
+}
+
+all_splits <- function(Trees, X_names = NULL){
+  idx <- sapply(Trees, get_all_splits) + 1
+  tab <- table(idx)
+  if(!is.null(X_names)) names(tab) <- X_names[as.numeric(names(tab))]
+  return(sort(tab, decreasing = TRUE))
+}
+
+
 
 # x <- X[359, ]
 

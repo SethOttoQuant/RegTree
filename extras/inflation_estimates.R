@@ -161,9 +161,13 @@ dev.print(png, filename = "C:/Users/seton/Dropbox/Quantagon/inflation_nowcasting
 mean((res$`one step ahead` -  res$`true values`)^2, na.rm = TRUE)
 mean((res$`cleveland_fed` -  res$`true values`)^2, na.rm = TRUE)
 
+# Save results
+write.csv(res, file = "C:/Users/seton/Dropbox/Quantagon/inflation_nowcasting/backtest_results.csv", row.names = FALSE, na = " ")
+
 # -------------------------------------------------------
 
 # --- Prediction with current dataset ----------------------
+
 dat <- process_MF(LHS = DT[series_name == "consumer price index cpi"], RHS = DT[series_name != "consumer price index cpi"],
                   LHS_lags = 3, RHS_lags = 0, as_of = NULL, frq = "month") # aggregate
 dt <- process(dat, lib = LIB) # make stationary
@@ -182,10 +186,71 @@ fit <- cpi$standardize_scale[seq(last_obs)]*out$fit + cpi$standardize_center[seq
 fit <- data.table("ref_date" = dates[seq(last_obs)], "fitted cpi" = c(fit))
 true_val <- DT[series_name == "consumer price index cpi"]
 true_val[ , value := Diff(log(value))]
-res <- merge(fit, true_val[ , .(ref_date, value)], by = "ref_date", all = TRUE)
+res <- merge(true_val[ , .(ref_date, value)], fit, by = "ref_date", all = TRUE)
 setnames(res, "value", "true value")
+res[ , `true value`:= 100*`true value`]
+res[ , `fitted cpi` := 100*`fitted cpi`]
+pretty_plot(tail(res, 48), ylab = "Monthly Percent Change", title = "CPI Nowcast")
 
-pretty_plot(res)
+dev.print(png, filename = "C:/Users/seton/Dropbox/Quantagon/inflation_nowcasting/cpi_september.png", width = 1400, height = 900, res = 175)
+
+
+tail(res)
+tmp <- DT[series_name == "consumer price index cpi"]
+(1.00378388)*tail(tmp$value,1)
+
+# Analysis: which series contribute the most?
+
+
+first_split(out$Trees, X_names = colnames(X))
+
+all_splits(out$Trees, X_names = colnames(X))
+
+# ------------- Short sample analysis -------------------------------------
+
+DT <- DT[ref_date >= as.Date("2010-01-01")]
+
+dat <- process_MF(LHS = DT[series_name == "consumer price index cpi"], RHS = DT[series_name != "consumer price index cpi"],
+                  LHS_lags = 3, RHS_lags = 0, as_of = NULL, frq = "month") # aggregate
+dt <- process(dat, lib = LIB) # make stationary
+cpi <- dt[series_name == "consumer price index cpi 0"]
+y <- cpi$value
+X <- dcast(dt[series_name != "consumer price index cpi 0"], ref_date ~ series_name, value.var = "value")
+dates <- X$ref_date
+X <- as.matrix(X[,-1,drop=FALSE])
+
+out <- reg_forest(y, X, steps = 1) # estimate model
+# undo processing
+last_obs <- nrow(out$fit)
+fit <- cpi$standardize_scale[seq(last_obs)]*out$fit + cpi$standardize_center[seq(last_obs)] + cpi$low_frequency_trend[seq(last_obs)]
+
+# plot against true values
+fit <- data.table("ref_date" = dates[seq(last_obs)], "fitted cpi" = c(fit))
+true_val <- DT[series_name == "consumer price index cpi"]
+true_val[ , value := Diff(log(value))]
+res <- merge(true_val[ , .(ref_date, value)], fit, by = "ref_date", all = TRUE)
+setnames(res, "value", "true value")
+res[ , `true value`:= 100*`true value`]
+res[ , `fitted cpi` := 100*`fitted cpi`]
+pretty_plot(tail(res, 48), ylab = "Monthly Percent Change", title = "CPI Nowcast")
+
+# pretty_plot(tail(res, 48), ylab = " ", title = " ", xlab = " ")
+
+dev.print(png, filename = "C:/Users/seton/Dropbox/Quantagon/inflation_nowcasting/cpi_september_short.png", width = 1400, height = 900, res = 175)
+
+first_split(out$Trees, X_names = colnames(X))
+
+all_splits(out$Trees, X_names = colnames(X))
+
+
+
+
+
+
+
+
+
+
 
 
 

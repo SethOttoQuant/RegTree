@@ -5,4 +5,6 @@ export(pretty_plot)
 export(RegForest)
 export(reg_forest)
 export(FitField)
+export(first_split)
+export(all_splits)
 

@@ -93,7 +93,7 @@ DT <- rbind(DT, CM) # one data set
 DT[ , country := NULL] # drop country since we're only dealing with the US
 
 # --- add EA data -------------------------
-ea_data <- fread("C:\\Users\\seton\\Dropbox\\Quantagon\\inflation_nowcasting\\blended.csv")
+ea_data <- fread("C:\\Users\\seton\\Dropbox\\Quantagon\\inflation_nowcasting\\blended_large.csv")
 ea_data[ , ref_date := as.Date(ref_date)]
 ea_data[ , pub_date := ref_date]
 ea_data[ , pub_lag := 0]
@@ -102,7 +102,7 @@ DT <- rbind(DT, ea_data)
 
 # ------ add EA library ----------------
 
-ea_lib <- fread("C:\\Users\\seton\\Dropbox\\Quantagon\\inflation_nowcasting\\hack_lib.csv")
+ea_lib <- fread("C:\\Users\\seton\\Dropbox\\Quantagon\\inflation_nowcasting\\hack_lib_big.csv")
 LIB <- rbind(LIB, ea_lib)
 
 # ----------- Backtest the model ------------------------
@@ -192,7 +192,7 @@ res[ , `true value`:= 100*`true value`]
 res[ , `fitted cpi` := 100*`fitted cpi`]
 pretty_plot(tail(res, 48), ylab = "Monthly Percent Change", title = "CPI Nowcast")
 
-dev.print(png, filename = "C:/Users/seton/Dropbox/Quantagon/inflation_nowcasting/cpi_september.png", width = 1400, height = 900, res = 175)
+# dev.print(png, filename = "C:/Users/seton/Dropbox/Quantagon/inflation_nowcasting/cpi_september.png", width = 1400, height = 900, res = 175)
 
 
 tail(res)
@@ -208,7 +208,7 @@ all_splits(out$Trees, X_names = colnames(X))
 
 # ------------- Short sample analysis -------------------------------------
 
-DT <- DT[ref_date >= as.Date("2010-01-01")]
+DT <- DT[ref_date >= as.Date("2011-10-01")] # 10 years of data
 
 dat <- process_MF(LHS = DT[series_name == "consumer price index cpi"], RHS = DT[series_name != "consumer price index cpi"],
                   LHS_lags = 3, RHS_lags = 0, as_of = NULL, frq = "month") # aggregate

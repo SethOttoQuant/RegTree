@@ -6,11 +6,6 @@
 
 using namespace Rcpp;
 
-#ifdef RCPP_USE_GLOBAL_ROSTREAM
-Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
-Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
-#endif
-
 // select_rnd
 arma::uvec select_rnd(arma::uword m, arma::uword n);
 RcppExport SEXP _RegTree_select_rnd(SEXP mSEXP, SEXP nSEXP) {

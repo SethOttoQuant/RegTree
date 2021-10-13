@@ -62,6 +62,72 @@ names(air) <- c("ref_date", "air_asi")
 SK <- merge(car1, car2, by = "ref_date", all = TRUE)
 SK <- merge(SK, air, by = "ref_date", all = TRUE)
 
+# ------- Ascential --------------------------
+
+hack <- fread("C:\\Users\\seton\\Dropbox\\Quantagon\\inflation_nowcasting\\blended.csv")
+Asc <- fread("C:\\Users\\seton\\Dropbox\\Quantagon\\inflation_nowcasting\\Ascential\\prices_20141229_20211003.csv")
+Asc[ , V7 := NULL]
+setnames(Asc, "START_DATE", "ref_date")
+Asc[ , ref_date := as.Date(ref_date)]
+
+obs <- dcast(Asc, ref_date ~  CATEGORY, value.var =  "NEWIN_PRODUCT_COUNT")
+obs$Jumpsuits
+
+
+sm <- rowSums(obs[,-1,with = FALSE], na.rm = TRUE)
+mean(sm)
+
+price <- dcast(Asc, ref_date ~ CATEGORY, value.var = "AVG_PRODUCT_PRICE")
+finite <- all_finite(t(price[,-1,with=F]))
+price <- price[ , c(TRUE, finite), with = FALSE]
+
+newprice <- dcast(Asc, ref_date ~ CATEGORY, value.var = "AVG_PRODUCT_NEWIN_PRICE")
+newprice <- newprice[ , c(TRUE, finite), with = FALSE]
+newprice <- as.matrix(price[,-1,with=FALSE]) - as.matrix(newprice[,-1,with=FALSE])
+newprice <- data.table("ref_date" = price$ref_date, newprice)
+
+pidx <- data.table("ref_date" = price$ref_date, 
+                   "price" = rowMeans(scale(as.matrix(price[,-1,with=FALSE])), na.rm = TRUE),
+                   "newprice" = rowMeans(scale(as.matrix(newprice[,-1,with=FALSE])), na.rm = TRUE))
+
+names(newprice)[-1] <- paste("new", names(newprice)[-1])
+
+price_long <- melt(price, id.vars = "ref_date", variable.name = "series_name", na.rm = TRUE)
+
+price_lib <- auto_library(price_long)
+price_lib[ , frequency := NULL]
+price_lib[ , needs_SA := TRUE]
+
+newprice_long <- melt(newprice, id.vars = "ref_date", variable.name = "series_name", na.rm = TRUE)
+
+newprice_lib <- auto_library(newprice_long)
+newprice_lib[ , frequency := NULL]
+
+pidx_long <- melt(pidx, id.vars = "ref_date", variable.name = "series_name", na.rm = TRUE)
+pidx_lib <- auto_library(pidx_long)
+pidx_lib[ , frequency := NULL]
+pidx_lib[ , needs_SA := TRUE]
+
+
+hack_lib <- fread("C:\\Users\\seton\\Dropbox\\Quantagon\\inflation_nowcasting\\hack_lib.csv")
+hack_lib[ , take_logs := as.logical(take_logs)]
+hack_lib[ , take_diffs := as.logical(take_diffs)]
+
+hack[ , ref_date := as.Date(ref_date)]
+Hack <- rbind(hack, pidx_long)
+
+write.csv(Hack, file = "C:\\Users\\seton\\Dropbox\\Quantagon\\inflation_nowcasting\\blended_2.csv", row.names = FALSE, na = " ")
+
+HACK <- rbind(Hack, price_long, newprice_long)
+write.csv(HACK, file = "C:\\Users\\seton\\Dropbox\\Quantagon\\inflation_nowcasting\\blended_large.csv", row.names = FALSE, na = " ")
+
+LIB <- rbind(hack_lib, price_lib, newprice_lib, pidx_lib)
+write.csv(LIB, "C:\\Users\\seton\\Dropbox\\Quantagon\\inflation_nowcasting\\hack_lib_big.csv", row.names = FALSE)
+
+tst <- newprice_long[series_name == "Jumpsuits"]
+
+pretty_plot(X = as.matrix(tst$value), x = tst$ref_date)
+
 # --- Merge it all together --------------
 Hack <- merge(CL_small, LU_small, by = "ref_date", all = TRUE)
 Hack <- merge(Hack, RL, by = "ref_date", all = TRUE)
@@ -69,6 +135,7 @@ Hack <- merge(Hack, SK, by = "ref_date", all = TRUE)
 
 hack <- melt(Hack, id.vars = "ref_date", variable.name = "series_name", na.rm = TRUE)
 write.csv(hack, file = "C:\\Users\\seton\\Dropbox\\Quantagon\\inflation_nowcasting\\blended.csv", row.names = FALSE, na = " ")
+
 
 # ------- Creating a library file for the data -------
 

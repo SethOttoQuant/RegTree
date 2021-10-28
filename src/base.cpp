@@ -139,8 +139,8 @@ arma::mat RegTree(arma::vec y, // response (no missing obs)
     leaf_idx = find(Tree.col(7)); // index of terminal nodes in Tree matrix
     leaves = Tree.rows(leaf_idx); // terminal nodes (i.e. leaves)
     // Rcpp::Rcout << Tree.rows(0,10) << endl;
-    j = leaf_idx(index_max(leaves.col(6)));
-    i += 2;
+    j = leaf_idx(index_max(leaves.col(6))); // index of leaf with max volatility
+    i += 2; // split result in 2 new rows
     var_new = sum(split(span(3,5))); // volatility at new node
     // Rcpp::Rcout << "old = " << var_old << "new = " << var_new << "next old = " << Tree(j,6) << endl;
     if((var_old - var_new)/var_old < threshold) break; // if volatility doesn't improve, break loop

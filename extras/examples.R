@@ -1,44 +1,68 @@
 library(RegTree)
 library(randomForest)
 library(ranger)
+library(dateutils)
 
 # ------ Simulate Data --------------
 SimData <- function(n = 100){
   X <- matrix(rnorm(n*20),n,20)
-  b <- c(1,10,3,0,2,-1,2,-3,0,1,1,0,2,0,3,-1,-2,-1,2,4)
+  b <- c(1,5,3,0,2,-1,2,-3,0,1,1,0,2,0,3,-1,-2,-1,2,4)
   y <- X%*%b + rnorm(n)
   return(list(X = X,
               b = b,
               y = y))
 }
 
-sim <- SimData(100)
-X_train <- sim$X
-y_train <- sim$y
+run_sim <- function(n){
+  sim <- SimData(n)
+  X_train <- sim$X
+  y_train <- sim$y
+  
+  sim <- SimData(n)
+  X_fit <- sim$X
+  y_true <- sim$y
+  
+  # In Sample
+  Trees <- RegForest(y_train,X_train, max_nodes = 32)
+  # fit <- FitField(X_train,Trees)
+  # ts.plot(cbind(fit,y_train), col = c("red", "blue"))
+  
+  # Out of Sample
+  fit <- FitField(X_fit,Trees)
+  # ts.plot(cbind(fit,y_true), col = c("red", "blue"))
+  
+  # vs randomForest package
+  rf <- randomForest(x = X_train, y = c(y_train))
+  rf_fit <- predict(rf, X_fit)
+  
+  df <- data.frame(y_train, X_train)
+  rf2 <- ranger(y_train ~ ., data = df)
+  ranger_fit <- predict(rf2, data = data.frame(X_fit))
+  
+  res <- data.frame(fit,rf_fit,ranger_fit$predictions,y_true)
+  names(res) <- c("new algo", "randomForest", "ranger", "true values")
+  return(res)
+}
 
-sim <- SimData(100)
-X_fit <- sim$X
-y_true <- sim$y
+A <- Sys.time()
+Out <- lapply(rep(100, 1000), FUN = run_sim)
+B <- Sys.time()
 
-# In Sample
-Trees <- RegForest(y_train,X_train, max_nodes = 32)
-# fit <- FitField(X_train,Trees)
-# ts.plot(cbind(fit,y_train), col = c("red", "blue"))
 
-# Out of Sample
-fit <- FitField(X_fit,Trees)
-# ts.plot(cbind(fit,y_true), col = c("red", "blue"))
+NewAlgo <- do.call("cbind", lapply(Out, FUN = get_from_list, what = "new algo"))
+randForest <- do.call("cbind", lapply(Out, FUN = get_from_list, what = "randomForest"))
+rang <- do.call("cbind", lapply(Out, FUN = get_from_list, what = "ranger"))
+TrueVals <- do.call("cbind", lapply(Out, FUN = get_from_list, what = "true values"))
 
-# vs randomForest package
-rf <- randomForest(x = X_train, y = c(y_train))
-rf_fit <- predict(rf, X_fit)
+mean((NewAlgo - TrueVals)^2)
+mean((randForest - TrueVals)^2)
+mean((rang - TrueVals)^2)
 
-df <- data.frame(y_train, X_train)
-rf2 <- ranger(y_train ~ ., data = df)
-ranger_fit <- predict(rf2, data = data.frame(X_fit))
+mean((NewAlgo - TrueVals)^2)
+mean((randForest - rang)^2)
+mean((rang - TrueVals)^2)
 
-res <- data.frame(fit,rf_fit,ranger_fit$predictions,y_true)
-names(res) <- c("new algo", "randomForest", "ranger", "true values")
+
 
 # x = NULL, X, lwd = 2, xlab = "Date", ylab = "", legend_pos = "bottomleft", title = ""
 pretty_plot(X = res, xlab = "Time", ylab = "Simulated Data", title = "New Algorithm against Existing Libraries")

@@ -17,6 +17,9 @@ run_sim <- function(n){
   sim <- SimData(n)
   X_train <- sim$X
   y_train <- sim$y
+  # X_train[1:50,1:10] <- NA
+  X_train[1:50, 2] <- NA
+  
   
   sim <- SimData(n)
   X_fit <- sim$X
@@ -30,6 +33,12 @@ run_sim <- function(n){
   # Out of Sample
   fit <- FitField(X_fit,Trees)
   # ts.plot(cbind(fit,y_true), col = c("red", "blue"))
+  
+  X_train[1:50,2] <- mean(X_train[51:100,2]) # matrix(1,50,1)%x%t(colMeans(X_train[51:100, 1:10]))
+  # X_train <- X_train[51:100,]
+  # y_train <- y_train[51:100]
+  #X_train <- X_train[ , -2]
+  #X_fit <- X_fit[,-2]
   
   # vs randomForest package
   rf <- randomForest(x = X_train, y = c(y_train))
@@ -58,9 +67,10 @@ mean((NewAlgo - TrueVals)^2)
 mean((randForest - TrueVals)^2)
 mean((rang - TrueVals)^2)
 
-mean((NewAlgo - TrueVals)^2)
+mean((NewAlgo - randForest)^2)
+mean((NewAlgo - rang)^2)
 mean((randForest - rang)^2)
-mean((rang - TrueVals)^2)
+
 
 
 

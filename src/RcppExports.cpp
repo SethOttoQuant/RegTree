@@ -6,6 +6,11 @@
 
 using namespace Rcpp;
 
+#ifdef RCPP_USE_GLOBAL_ROSTREAM
+Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
+Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
+#endif
+
 // select_rnd
 arma::uvec select_rnd(arma::uword m, arma::uword n);
 RcppExport SEXP _RegTree_select_rnd(SEXP mSEXP, SEXP nSEXP) {
@@ -19,27 +24,29 @@ BEGIN_RCPP
 END_RCPP
 }
 // find_cut
-arma::vec find_cut(arma::vec x, arma::vec y);
-RcppExport SEXP _RegTree_find_cut(SEXP xSEXP, SEXP ySEXP) {
+arma::vec find_cut(arma::vec x, arma::vec y, double mu);
+RcppExport SEXP _RegTree_find_cut(SEXP xSEXP, SEXP ySEXP, SEXP muSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< arma::vec >::type x(xSEXP);
     Rcpp::traits::input_parameter< arma::vec >::type y(ySEXP);
-    rcpp_result_gen = Rcpp::wrap(find_cut(x, y));
+    Rcpp::traits::input_parameter< double >::type mu(muSEXP);
+    rcpp_result_gen = Rcpp::wrap(find_cut(x, y, mu));
     return rcpp_result_gen;
 END_RCPP
 }
 // best_split
-arma::vec best_split(arma::mat X, arma::vec y, arma::uword n);
-RcppExport SEXP _RegTree_best_split(SEXP XSEXP, SEXP ySEXP, SEXP nSEXP) {
+arma::vec best_split(arma::mat X, arma::vec y, double mu, arma::uword n);
+RcppExport SEXP _RegTree_best_split(SEXP XSEXP, SEXP ySEXP, SEXP muSEXP, SEXP nSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< arma::mat >::type X(XSEXP);
     Rcpp::traits::input_parameter< arma::vec >::type y(ySEXP);
+    Rcpp::traits::input_parameter< double >::type mu(muSEXP);
     Rcpp::traits::input_parameter< arma::uword >::type n(nSEXP);
-    rcpp_result_gen = Rcpp::wrap(best_split(X, y, n));
+    rcpp_result_gen = Rcpp::wrap(best_split(X, y, mu, n));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -124,8 +131,8 @@ END_RCPP
 
 static const R_CallMethodDef CallEntries[] = {
     {"_RegTree_select_rnd", (DL_FUNC) &_RegTree_select_rnd, 2},
-    {"_RegTree_find_cut", (DL_FUNC) &_RegTree_find_cut, 2},
-    {"_RegTree_best_split", (DL_FUNC) &_RegTree_best_split, 3},
+    {"_RegTree_find_cut", (DL_FUNC) &_RegTree_find_cut, 3},
+    {"_RegTree_best_split", (DL_FUNC) &_RegTree_best_split, 4},
     {"_RegTree_node_conditions", (DL_FUNC) &_RegTree_node_conditions, 2},
     {"_RegTree_RegTree", (DL_FUNC) &_RegTree_RegTree, 4},
     {"_RegTree_FitVec", (DL_FUNC) &_RegTree_FitVec, 3},

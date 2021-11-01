@@ -34,11 +34,12 @@ run_sim <- function(n){
   fit <- FitField(X_fit,Trees)
   # ts.plot(cbind(fit,y_true), col = c("red", "blue"))
   
-  # X_train[1:50,2] <- mean(X_train[51:100,2]) # matrix(1,50,1)%x%t(colMeans(X_train[51:100, 1:10]))
+  # X_train[1:50,2] <- mean(X_train[51:100,2]) 
+  X_train[1:50, 1:10] <- matrix(1,50,1)%x%t(colMeans(X_train[51:100, 1:10]))
   # X_train <- X_train[51:100,]
   # y_train <- y_train[51:100]
-  X_train <- X_train[ , -seq(10)]
-  X_fit <- X_fit[,-seq(10)]
+  # X_train <- X_train[ , -seq(10)]
+  # X_fit <- X_fit[,-seq(10)]
   
   # vs randomForest package
   rf <- randomForest(x = X_train, y = c(y_train))

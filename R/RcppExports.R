@@ -5,12 +5,12 @@ select_rnd <- function(m, n) {
     .Call('_RegTree_select_rnd', PACKAGE = 'RegTree', m, n)
 }
 
-find_cut <- function(x, y) {
-    .Call('_RegTree_find_cut', PACKAGE = 'RegTree', x, y)
+find_cut <- function(x, y, mu) {
+    .Call('_RegTree_find_cut', PACKAGE = 'RegTree', x, y, mu)
 }
 
-best_split <- function(X, y, n) {
-    .Call('_RegTree_best_split', PACKAGE = 'RegTree', X, y, n)
+best_split <- function(X, y, mu, n) {
+    .Call('_RegTree_best_split', PACKAGE = 'RegTree', X, y, mu, n)
 }
 
 node_conditions <- function(Tree, j) {

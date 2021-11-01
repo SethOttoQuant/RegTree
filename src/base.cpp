@@ -14,14 +14,20 @@ arma::uvec select_rnd(arma::uword m, // number of elements
   return(out.head(n));
 }
 
+
+// Output is:
+
 // [[Rcpp::export]]
 arma::vec find_cut(arma::vec x, // predictor
-             arma::vec y){ // response
+                   arma::vec y, // response
+                   double mu){ // E(y) from previous node
   uvec obs = find_finite(x);
   uvec not_obs = find_nonfinite(x);
+  uword n = obs.n_elem;
+  uword nnot = not_obs.n_elem;
   double vnce_na = 0;
-  if(not_obs.n_elem>0) vnce_na = sum(square(y(not_obs) - mean(y)));
-  if(obs.n_elem<2){
+  if(nnot>0) vnce_na = sum(square(y(not_obs) - mu)); // E(y) with no new data 
+  if(n<2){
     vec out = {0, 0, 0 , 0, vnce_na, 0}; // no observations; not useful
     return(out);
   }
@@ -30,16 +36,17 @@ arma::vec find_cut(arma::vec x, // predictor
   uvec idx = sort_index(x); // ascending; may be duplicate values here (doesn't matter)
   vec x_sorted = x(idx);
   vec yx = y(idx); // sort y by x values
-  uword n = yx.n_elem; // number of obs
   mat vnce(2,n-1); // store variance resulting from split
   for(uword j=0; j<n-1; j++){
-    vnce(0,j) = sum(square(yx(span(0,j)) - mean(yx(span(0,j))))); // <= variance
-    vnce(1,j) = sum(square(yx(span(j+1,n-1)) - mean(yx(span(j+1,n-1))))); // > variance
+    vnce(0,j) = sum(square(yx(span(0,j)) - (sum(yx(span(0,j))) + nnot*mu)/(j+nnot+1) )); // <= variance
+    vnce(1,j) = sum(square(yx(span(j+1,n-1)) - (sum(yx(span(j+1,n-1))) + nnot*mu)/(n-j-1+nnot) )); // > variance
   }
   uword imin = index_min(sum(vnce,0));
   double cut = (x_sorted(imin) + x_sorted(imin+1))/2;
   // Rcpp::Rcout << imin << endl;// [[Rcpp::export]]
-  vec out = {mean(yx(span(0,imin))), mean(yx(span(imin+1, n-1))), vnce(0,imin), vnce(1,imin), vnce_na, cut};
+  // vec out = {mean(yx(span(0,imin))), mean(yx(span(imin+1, n-1))), vnce(0,imin), vnce(1,imin), vnce_na, cut};
+  vec out = {(sum(yx(span(0,imin))) + nnot*mu)/(imin+nnot+1), (sum(yx(span(imin+1,n-1))) + nnot*mu)/(n-imin-1+nnot), 
+             vnce(0,imin), vnce(1,imin), vnce_na, cut};
   // Rcpp::List oot;
   // oot["vnce"] = vnce;
   // oot["out"] = out;
@@ -51,17 +58,15 @@ arma::vec find_cut(arma::vec x, // predictor
 // [[Rcpp::export]]
 arma::vec best_split(arma::mat X, // predictors
                arma::vec y, // response
+               double mu, // expected value at previous node
                arma::uword n){ // number of candidates to select
   // select candidates for splitting
   uvec candidates = select_rnd(X.n_cols, n); // randomly selected candidates
   mat splits(6,n); // results matrix (mean <, mean >, vol <, vol >, vol NA, cut)
   for(uword j=0; j<n; j++){
-    splits.col(j) = find_cut(X.col(candidates(j)), y); // find best split for each series
+    splits.col(j) = find_cut(X.col(candidates(j)), y, mu); // find best split for each series
   }
   vec tot_var = trans(sum(splits.rows(2,4),0)); // rows 2:4 contain variance for high, low, and NA values
-  
-  
-  
   uword min_idx = index_min(tot_var); // which series offers least variance in y
   vec out(7); // results vector 
   out(0) = candidates(min_idx); // index of the best one
@@ -119,9 +124,9 @@ arma::mat RegTree(arma::vec y, // response (no missing obs)
   mat cndtn; uvec idx; uvec leaf_idx; double var_new = 0;
   uword i = 0;
   uword j = 0;
-  double var_old = Tree(0,6); // volatility on pervious node
+  double var_old = Tree(0,6); // volatility on previous node
   while(i+2<max_nodes){
-    split = best_split(Xtmp, ytmp, n);
+    split = best_split(Xtmp, ytmp, Tree(j,5), n);
     Tree(j,0) = split(0); // which variable
     Tree(j,1) = split(6); // cut value
     Tree(j,2) = i+1; // if <, go to node i+1
@@ -139,7 +144,7 @@ arma::mat RegTree(arma::vec y, // response (no missing obs)
     leaf_idx = find(Tree.col(7)); // index of terminal nodes in Tree matrix
     leaves = Tree.rows(leaf_idx); // terminal nodes (i.e. leaves)
     // Rcpp::Rcout << Tree.rows(0,10) << endl;
-    j = leaf_idx(index_max(leaves.col(6))); // index of leaf with max volatility
+    j = leaf_idx(index_max(leaves.col(6))); // index of leaf with max volatility to work on next
     i += 2; // split result in 2 new rows
     var_new = sum(split(span(3,5))); // volatility at new node
     // Rcpp::Rcout << "old = " << var_old << "new = " << var_new << "next old = " << Tree(j,6) << endl;

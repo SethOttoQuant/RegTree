@@ -17,6 +17,10 @@ node_conditions <- function(Tree, j) {
     .Call('_RegTree_node_conditions', PACKAGE = 'RegTree', Tree, j)
 }
 
+testfun <- function(x) {
+    .Call('_RegTree_testfun', PACKAGE = 'RegTree', x)
+}
+
 RegTree <- function(y, X, max_nodes = 64L, threshold = 0.01) {
     .Call('_RegTree_RegTree', PACKAGE = 'RegTree', y, X, max_nodes, threshold)
 }

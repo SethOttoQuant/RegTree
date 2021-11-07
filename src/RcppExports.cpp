@@ -62,6 +62,17 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// testfun
+arma::uvec testfun(arma::vec x);
+RcppExport SEXP _RegTree_testfun(SEXP xSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::vec >::type x(xSEXP);
+    rcpp_result_gen = Rcpp::wrap(testfun(x));
+    return rcpp_result_gen;
+END_RCPP
+}
 // RegTree
 arma::mat RegTree(arma::vec y, arma::mat X, arma::uword max_nodes, double threshold);
 RcppExport SEXP _RegTree_RegTree(SEXP ySEXP, SEXP XSEXP, SEXP max_nodesSEXP, SEXP thresholdSEXP) {
@@ -134,6 +145,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_RegTree_find_cut", (DL_FUNC) &_RegTree_find_cut, 3},
     {"_RegTree_best_split", (DL_FUNC) &_RegTree_best_split, 4},
     {"_RegTree_node_conditions", (DL_FUNC) &_RegTree_node_conditions, 2},
+    {"_RegTree_testfun", (DL_FUNC) &_RegTree_testfun, 1},
     {"_RegTree_RegTree", (DL_FUNC) &_RegTree_RegTree, 4},
     {"_RegTree_FitVec", (DL_FUNC) &_RegTree_FitVec, 3},
     {"_RegTree_FitMat", (DL_FUNC) &_RegTree_FitMat, 2},

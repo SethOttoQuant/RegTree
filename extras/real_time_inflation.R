@@ -25,47 +25,7 @@ lib <- lib[country == "united states"]
 DT[ , ref_date := as.Date(ref_date)]
 DT[ , pub_date := as.Date(pub_date)]
 
-DT <- DT[!series_name%in%c("non farm payrolls sa", "crude oil rigs sa")]
-
-# --- for early plots in slides ----------------------------------------------------
-
-fred_series <- c("CPIAUCSL", "PCEPI")
-inflation <-lapply(fred_series, FUN = Get_FRED_Data)  
-inflation <- rbindlist(inflation)
-inflation <- dcast(inflation, ref_date ~ series_name)
-names(inflation) <- c("ref_date", "CPI level", "PCE level")
-inflation[ , CPI := (1+pct_chng(`CPI level`))^12-1]
-inflation[ , PCE := (1+pct_chng(`PCE level`))^12-1]
-pretty_plot(x = inflation$ref_date, X = as.matrix(inflation[, .(CPI, PCE)]), title = "Inflation Measures")
-
-# dev.print(png, filename = "C:/Users/seton/Dropbox/Quantagon/inflation_nowcasting/pce_cpi.png", width = 1400, height = 900, res = 200)
-
-vs <- tail(inflation[ , .(ref_date, `CPI level`, CPI)], 12)
-vs[ , `CPI level` := 3*`CPI level`/vs$`CPI level`[1]]
-tmp <- vs$`CPI level`
-ig <- 1.04^(1/12)
-ig <- ig^seq(6)
-tmp[7:12] <- tmp[6]*ig
-
-X <- cbind(tmp - 3, vs$`CPI level`-3, vs$CPI)
-
-matplot(vs$ref_date, X, type = 'l', lty = c(2,1,1), col = c("black", "black", "deeppink"), lwd = 2, xlab = "Date")
-grid(col = "lightslategrey")
-legend("topleft", c("4% Inflation in Levels", "CPI level", "CPI percent change"),
-       col = c("black", "black", "deeppink"), lty = c(2,1,1), lwd = 2) #  bty = "n"
-title("Inflation vs. Price Level")
-
-dev.print(png, filename = "C:/Users/seton/Dropbox/Quantagon/inflation_nowcasting/cpi_inf_v_lev.png", width = 1400, height = 900, res = 175)
-
-keep_small <- c("consumer price index cpi",
-                "Brent", "gasoline prices weekly",
-                "corporate 10y t bill spread")
-dt <- DT[series_name%in%keep_small]
-dt <- dcast(dt, ref_date ~ series_name, value.var = "value")
-dt <- dt[ref_date >= as.Date("2021-08-31")]
-write.csv(dt, file = "C:/Users/seton/Dropbox/Quantagon/inflation_nowcasting/MF_example.csv", row.names = FALSE, na = " ")
-
-# ----------------------------------------------------------------------------
+DT <- DT[!series_name%in%c("non farm payrolls sa", "crude oil rigs sa", "inflation expectations")]
 
 # load commodity prices
 CM <- fread("C:/Users/seton/Dropbox/market/commod_data.csv") # load data
@@ -92,18 +52,16 @@ CM[ , pub_lag := 1]
 DT <- rbind(DT, CM) # one data set
 DT[ , country := NULL] # drop country since we're only dealing with the US
 
-# --- add EA data -------------------------
-ea_data <- fread("C:\\Users\\seton\\Dropbox\\Quantagon\\inflation_nowcasting\\blended_large.csv")
-ea_data[ , ref_date := as.Date(ref_date)]
-ea_data[ , pub_date := ref_date]
-ea_data[ , pub_lag := 0]
+# ---- Additional FRED data -------------------------------------------
 
-DT <- rbind(DT, ea_data)
+Fred <- rbindlist(lapply(c("T10YIE", "T5YIE"), FUN = Get_FRED_Data, observation_start = "1992-01-01"))
+Fred[ , pub_date := ref_date]
+Fred[ , pub_lag := 0]
 
-# ------ add EA library ----------------
+FredLib <- data.table("series_name" = c("T10YIE", "T5YIE"), "needs_SA" = 0, "take_logs" = 0, "take_diffs" = 0 )
+LIB <- rbind(LIB, FredLib)
 
-ea_lib <- fread("C:\\Users\\seton\\Dropbox\\Quantagon\\inflation_nowcasting\\hack_lib_big.csv")
-LIB <- rbind(LIB, ea_lib)
+DT <- rbind(DT, Fred)
 
 # ----------- Backtest the model ------------------------
 back_dates <- seq.Date(from = as.Date("2019-01-06"), to = Sys.Date(), by = "week") # 2021 to date
@@ -192,12 +150,13 @@ res[ , `true value`:= 100*`true value`]
 res[ , `fitted cpi` := 100*`fitted cpi`]
 pretty_plot(tail(res, 48), ylab = "Monthly Percent Change", title = "CPI Nowcast")
 
-# dev.print(png, filename = "C:/Users/seton/Dropbox/Quantagon/inflation_nowcasting/cpi_september.png", width = 1400, height = 900, res = 175)
-
+dev.print(png, filename = "C:/Users/seton/Dropbox/system2/inflation/nowcast.png", width = 1400, height = 900, res = 175)
 
 tail(res)
+pred_val <-  tail(res$`fitted cpi`, 1)/100
 tmp <- DT[series_name == "consumer price index cpi"]
-(1.00378388)*tail(tmp$value,1)
+(1 + pred_val)*tail(tmp$value,1) # level
+(1 + pred_val)^12 - 1
 
 # Analysis: which series contribute the most?
 

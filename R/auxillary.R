@@ -9,7 +9,7 @@ pretty_plot <- function(X, x = NULL, lwd = 2, xlab = "Date", ylab = "", legend_p
     x <- X[ , "ref_date"]
     X <- X[ , !colnames(X)%in%"ref_date"]
   }else if(is.null(x)) x <- 1:NROW(X)
-  k <- ncol(X)
+  k <- NCOL(X)
   color <- rep(c("black", "deeppink", "deepskyblue3", "green3", "tan3", "turquoise", "darkgrey", "steelblue", "violetred", "yellow3"),5)
   color <- color[1:k]
   matplot(x, X, type = 'l', lty = 1, col = color, lwd = lwd, xlab = xlab, ylab = ylab)

@@ -38,15 +38,17 @@ arma::vec find_cut(arma::vec x, // predictor
   vec yx = y(idx); // sort y by x values
   mat vnce(2,n-1); // store variance resulting from split
   for(uword j=0; j<n-1; j++){
-    vnce(0,j) = sum(square(yx(span(0,j)) - (sum(yx(span(0,j))) + nnot*mu)/(j+nnot+1) )); // <= variance
-    vnce(1,j) = sum(square(yx(span(j+1,n-1)) - (sum(yx(span(j+1,n-1))) + nnot*mu)/(n-j-1+nnot) )); // > variance
+    vnce(0,j) = sum(square(yx(span(0,j)) - mean(yx(span(0,j))) )); // <= variance
+    vnce(1,j) = sum(square(yx(span(j+1,n-1)) - mean(yx(span(j+1,n-1))) )); // > variance
+    // vnce(0,j) = sum(square(yx(span(0,j)) - (sum(yx(span(0,j))) + nnot*mu)/(j+nnot+1) )); // <= variance
+    // vnce(1,j) = sum(square(yx(span(j+1,n-1)) - (sum(yx(span(j+1,n-1))) + nnot*mu)/(n-j-1+nnot) )); // > variance
   }
   uword imin = index_min(sum(vnce,0));
   double cut = (x_sorted(imin) + x_sorted(imin+1))/2;
   // Rcpp::Rcout << imin << endl;// [[Rcpp::export]]
-  // vec out = {mean(yx(span(0,imin))), mean(yx(span(imin+1, n-1))), vnce(0,imin), vnce(1,imin), vnce_na, cut};
-  vec out = {(sum(yx(span(0,imin))) + nnot*mu)/(imin+nnot+1), (sum(yx(span(imin+1,n-1))) + nnot*mu)/(n-imin-1+nnot), 
-             vnce(0,imin), vnce(1,imin), vnce_na, cut};
+  vec out = {mean(yx(span(0,imin))), mean(yx(span(imin+1, n-1))), vnce(0,imin), vnce(1,imin), vnce_na, cut};
+  // vec out = {(sum(yx(span(0,imin))) + nnot*mu)/(imin+nnot+1), (sum(yx(span(imin+1,n-1))) + nnot*mu)/(n-imin-1+nnot), 
+  //           vnce(0,imin), vnce(1,imin), vnce_na, cut};
   // Rcpp::List oot;
   // oot["vnce"] = vnce;
   // oot["out"] = out;
@@ -104,6 +106,12 @@ arma::mat node_conditions(arma::mat Tree,
   return(out);
 }
 
+// [[Rcpp::export]]
+arma::uvec testfun(arma::vec x){
+  uvec out = find(x != x || x<2);
+  return(out);
+}
+
 // unconstrained optimization problem
 // [[Rcpp::export]]
 arma::mat RegTree(arma::vec y, // response (no missing obs)
@@ -156,8 +164,10 @@ arma::mat RegTree(arma::vec y, // response (no missing obs)
     ytmp = y;
     for(uword l=0; l<cndtn.n_cols; l++){
       if(cndtn(2,l)==0){ // less than
-        idx = find(Xtmp.col(cndtn(0,l)) <= cndtn(1,l));
+        // idx = find(Xtmp.col(cndtn(0,l)) <= cndtn(1,l) || Xtmp.col(cndtn(0,l)) != Xtmp.col(cndtn(0,l))); // include all values that meet condition and NA values
+        idx = find(Xtmp.col(cndtn(0,l)) <= cndtn(1,l)); //
       }else{ // greater than
+        // idx = find(Xtmp.col(cndtn(0,l)) > cndtn(1,l) || Xtmp.col(cndtn(0,l)) != Xtmp.col(cndtn(0,l)) );
         idx = find(Xtmp.col(cndtn(0,l)) > cndtn(1,l));
       }
       Xtmp = Xtmp.rows(idx); // keep only rows that meet condition

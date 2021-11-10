@@ -15,9 +15,9 @@ arma::uvec select_rnd(arma::uword m, // number of elements
 }
 
 // [[Rcpp::export]]
-arma::field<vec> quickreg(arma::vec x, // no missing
-                          arma::vec y, // no missing
-                          double r){ // ridge parameter
+arma::field<arma::vec> quickreg(arma::vec x, // no missing
+                                arma::vec y, // no missing
+                                double r){ // ridge parameter
   mat X(x.n_elem, 2, fill::ones);
   X.col(1) = x;
   mat I = r*eye(2,2);
@@ -36,9 +36,9 @@ arma::field<vec> quickreg(arma::vec x, // no missing
 // Output is:
 
 // [[Rcpp::export]]
-arma::field<vec> find_cut(arma::vec x, // predictor
-                          arma::vec y, // response (residuals)
-                          arma::uvec ind){ 
+arma::field<arma::vec> find_cut(arma::vec x, // predictor
+                       arma::vec y, // response (residuals)
+                       arma::uvec ind){ 
   uvec obs = find_finite(x);
   uvec not_obs = find_nonfinite(x);
   uword n = obs.n_elem;
@@ -90,10 +90,10 @@ arma::field<vec> find_cut(arma::vec x, // predictor
 
 // find the best series in X to identify y
 // [[Rcpp::export]]
-arma::field<vec> best_split(arma::mat X, // predictors
-                 arma::vec y, // response
-                 arma::uvec ind, // index of observations in original data
-                 arma::uword n){ // number of candidates to select
+arma::field<arma::vec> best_split(arma::mat X, // predictors
+                       arma::vec y, // response
+                       arma::uvec ind, // index of observations in original data
+                       arma::uword n){ // number of candidates to select
   // select candidates for splitting
   uvec candidates = select_rnd(X.n_cols, n); // randomly selected candidates
   mat splits(8,n); // results matrix (mean <, mean >, vol <, vol >, vol NA, cut)

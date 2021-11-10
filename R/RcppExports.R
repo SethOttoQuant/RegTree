@@ -5,24 +5,24 @@ select_rnd <- function(m, n) {
     .Call('_RegTree_select_rnd', PACKAGE = 'RegTree', m, n)
 }
 
-find_cut <- function(x, y, mu) {
-    .Call('_RegTree_find_cut', PACKAGE = 'RegTree', x, y, mu)
+quickreg <- function(x, y, r) {
+    .Call('_RegTree_quickreg', PACKAGE = 'RegTree', x, y, r)
 }
 
-best_split <- function(X, y, mu, n) {
-    .Call('_RegTree_best_split', PACKAGE = 'RegTree', X, y, mu, n)
+find_cut <- function(x, y, ind) {
+    .Call('_RegTree_find_cut', PACKAGE = 'RegTree', x, y, ind)
 }
 
-node_conditions <- function(Tree, j) {
-    .Call('_RegTree_node_conditions', PACKAGE = 'RegTree', Tree, j)
+best_split <- function(X, y, ind, n) {
+    .Call('_RegTree_best_split', PACKAGE = 'RegTree', X, y, ind, n)
 }
 
 testfun <- function(x) {
     .Call('_RegTree_testfun', PACKAGE = 'RegTree', x)
 }
 
-RegTree <- function(y, X, max_nodes = 64L, threshold = 0.01) {
-    .Call('_RegTree_RegTree', PACKAGE = 'RegTree', y, X, max_nodes, threshold)
+RegTree <- function(y, X, max_nodes = 31L) {
+    .Call('_RegTree_RegTree', PACKAGE = 'RegTree', y, X, max_nodes)
 }
 
 FitVec <- function(x, Tree, maxit = 1000L) {
@@ -33,8 +33,8 @@ FitMat <- function(X, Tree) {
     .Call('_RegTree_FitMat', PACKAGE = 'RegTree', X, Tree)
 }
 
-RegForest <- function(y, X, max_nodes = 64L, threshold = 0.01, draws = 500L) {
-    .Call('_RegTree_RegForest', PACKAGE = 'RegTree', y, X, max_nodes, threshold, draws)
+RegForest <- function(y, X, max_nodes = 31L, draws = 1000L) {
+    .Call('_RegTree_RegForest', PACKAGE = 'RegTree', y, X, max_nodes, draws)
 }
 
 FitField <- function(X, Trees) {

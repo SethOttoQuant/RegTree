@@ -1,7 +1,5 @@
 
 
-
-
 pretty_plot <- function(X, x = NULL, lwd = 2, xlab = "Date", ylab = "", legend_pos = "bottomleft", title = ""){
   
   if("ref_date"%in%colnames(X)){
@@ -21,16 +19,16 @@ pretty_plot <- function(X, x = NULL, lwd = 2, xlab = "Date", ylab = "", legend_p
   title(title)
 }
 
-reg_forest <- function(y, X, max_nodes = 64, threshold = 0.02, draws = 500, steps = 1, treehugger = TRUE){
+reg_forest <- function(y, X, max_nodes = 64, draws = 1000, steps = 1, treehugger = TRUE){
   y <- c(y)
   X <- as.matrix(X)
   y_finite <- is.finite(y) # fit model on periods in which y is finite
   last_period <- max(which(y_finite)) + steps # the period we want to predict
   X <- X[ ,is.finite(X[last_period, ])] # if X not observed in the period we wish to predict, drop it
   
-  Trees <- RegForest(y[y_finite], X[y_finite, ], max_nodes, threshold, draws) # estimate model
+  Trees <- RegForest(y[y_finite], X[y_finite, ], max_nodes, draws) # estimate model
   
-  fit <- FitField(X[seq(last_period), ], Trees) # fit model
+  fit <- FitField(X[seq(last_period), ], Trees) # in sample fit
   out <- list(fit = fit, true_vals = y[seq(last_period)])
   if(treehugger) out$Trees <- Trees
   return(out)

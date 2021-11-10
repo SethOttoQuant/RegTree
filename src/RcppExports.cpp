@@ -23,42 +23,43 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// find_cut
-arma::vec find_cut(arma::vec x, arma::vec y, double mu);
-RcppExport SEXP _RegTree_find_cut(SEXP xSEXP, SEXP ySEXP, SEXP muSEXP) {
+// quickreg
+arma::field<arma::vec> quickreg(arma::vec x, arma::vec y, double r);
+RcppExport SEXP _RegTree_quickreg(SEXP xSEXP, SEXP ySEXP, SEXP rSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< arma::vec >::type x(xSEXP);
     Rcpp::traits::input_parameter< arma::vec >::type y(ySEXP);
-    Rcpp::traits::input_parameter< double >::type mu(muSEXP);
-    rcpp_result_gen = Rcpp::wrap(find_cut(x, y, mu));
+    Rcpp::traits::input_parameter< double >::type r(rSEXP);
+    rcpp_result_gen = Rcpp::wrap(quickreg(x, y, r));
+    return rcpp_result_gen;
+END_RCPP
+}
+// find_cut
+arma::field<arma::vec> find_cut(arma::vec x, arma::vec y, arma::uvec ind);
+RcppExport SEXP _RegTree_find_cut(SEXP xSEXP, SEXP ySEXP, SEXP indSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::vec >::type x(xSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type y(ySEXP);
+    Rcpp::traits::input_parameter< arma::uvec >::type ind(indSEXP);
+    rcpp_result_gen = Rcpp::wrap(find_cut(x, y, ind));
     return rcpp_result_gen;
 END_RCPP
 }
 // best_split
-arma::vec best_split(arma::mat X, arma::vec y, double mu, arma::uword n);
-RcppExport SEXP _RegTree_best_split(SEXP XSEXP, SEXP ySEXP, SEXP muSEXP, SEXP nSEXP) {
+arma::field<arma::vec> best_split(arma::mat X, arma::vec y, arma::uvec ind, arma::uword n);
+RcppExport SEXP _RegTree_best_split(SEXP XSEXP, SEXP ySEXP, SEXP indSEXP, SEXP nSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< arma::mat >::type X(XSEXP);
     Rcpp::traits::input_parameter< arma::vec >::type y(ySEXP);
-    Rcpp::traits::input_parameter< double >::type mu(muSEXP);
+    Rcpp::traits::input_parameter< arma::uvec >::type ind(indSEXP);
     Rcpp::traits::input_parameter< arma::uword >::type n(nSEXP);
-    rcpp_result_gen = Rcpp::wrap(best_split(X, y, mu, n));
-    return rcpp_result_gen;
-END_RCPP
-}
-// node_conditions
-arma::mat node_conditions(arma::mat Tree, arma::uword j);
-RcppExport SEXP _RegTree_node_conditions(SEXP TreeSEXP, SEXP jSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< arma::mat >::type Tree(TreeSEXP);
-    Rcpp::traits::input_parameter< arma::uword >::type j(jSEXP);
-    rcpp_result_gen = Rcpp::wrap(node_conditions(Tree, j));
+    rcpp_result_gen = Rcpp::wrap(best_split(X, y, ind, n));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -74,16 +75,15 @@ BEGIN_RCPP
 END_RCPP
 }
 // RegTree
-arma::mat RegTree(arma::vec y, arma::mat X, arma::uword max_nodes, double threshold);
-RcppExport SEXP _RegTree_RegTree(SEXP ySEXP, SEXP XSEXP, SEXP max_nodesSEXP, SEXP thresholdSEXP) {
+arma::mat RegTree(arma::vec y, arma::mat X, arma::uword max_nodes);
+RcppExport SEXP _RegTree_RegTree(SEXP ySEXP, SEXP XSEXP, SEXP max_nodesSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< arma::vec >::type y(ySEXP);
     Rcpp::traits::input_parameter< arma::mat >::type X(XSEXP);
     Rcpp::traits::input_parameter< arma::uword >::type max_nodes(max_nodesSEXP);
-    Rcpp::traits::input_parameter< double >::type threshold(thresholdSEXP);
-    rcpp_result_gen = Rcpp::wrap(RegTree(y, X, max_nodes, threshold));
+    rcpp_result_gen = Rcpp::wrap(RegTree(y, X, max_nodes));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -113,17 +113,16 @@ BEGIN_RCPP
 END_RCPP
 }
 // RegForest
-arma::field<arma::mat> RegForest(arma::vec y, arma::mat X, arma::uword max_nodes, double threshold, arma::uword draws);
-RcppExport SEXP _RegTree_RegForest(SEXP ySEXP, SEXP XSEXP, SEXP max_nodesSEXP, SEXP thresholdSEXP, SEXP drawsSEXP) {
+arma::field<arma::mat> RegForest(arma::vec y, arma::mat X, arma::uword max_nodes, arma::uword draws);
+RcppExport SEXP _RegTree_RegForest(SEXP ySEXP, SEXP XSEXP, SEXP max_nodesSEXP, SEXP drawsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< arma::vec >::type y(ySEXP);
     Rcpp::traits::input_parameter< arma::mat >::type X(XSEXP);
     Rcpp::traits::input_parameter< arma::uword >::type max_nodes(max_nodesSEXP);
-    Rcpp::traits::input_parameter< double >::type threshold(thresholdSEXP);
     Rcpp::traits::input_parameter< arma::uword >::type draws(drawsSEXP);
-    rcpp_result_gen = Rcpp::wrap(RegForest(y, X, max_nodes, threshold, draws));
+    rcpp_result_gen = Rcpp::wrap(RegForest(y, X, max_nodes, draws));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -142,14 +141,14 @@ END_RCPP
 
 static const R_CallMethodDef CallEntries[] = {
     {"_RegTree_select_rnd", (DL_FUNC) &_RegTree_select_rnd, 2},
+    {"_RegTree_quickreg", (DL_FUNC) &_RegTree_quickreg, 3},
     {"_RegTree_find_cut", (DL_FUNC) &_RegTree_find_cut, 3},
     {"_RegTree_best_split", (DL_FUNC) &_RegTree_best_split, 4},
-    {"_RegTree_node_conditions", (DL_FUNC) &_RegTree_node_conditions, 2},
     {"_RegTree_testfun", (DL_FUNC) &_RegTree_testfun, 1},
-    {"_RegTree_RegTree", (DL_FUNC) &_RegTree_RegTree, 4},
+    {"_RegTree_RegTree", (DL_FUNC) &_RegTree_RegTree, 3},
     {"_RegTree_FitVec", (DL_FUNC) &_RegTree_FitVec, 3},
     {"_RegTree_FitMat", (DL_FUNC) &_RegTree_FitMat, 2},
-    {"_RegTree_RegForest", (DL_FUNC) &_RegTree_RegForest, 5},
+    {"_RegTree_RegForest", (DL_FUNC) &_RegTree_RegForest, 4},
     {"_RegTree_FitField", (DL_FUNC) &_RegTree_FitField, 2},
     {NULL, NULL, 0}
 };

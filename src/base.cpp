@@ -59,25 +59,25 @@ arma::field<vec> find_cut(arma::vec x, // predictor
   y = y(obs);
   ind = ind(obs);
   uvec idx = sort_index(x); // ascending; may be duplicate values here (doesn't matter)
-  vec x_sorted = x(idx);
-  vec yx = y(idx); // sort y by x values
+  x = x(idx); // sorted by x values
+  y = y(idx); // sort y by x values
   mat Pleq(3,n-9); // pars, <=. Order is a  b  sig
   mat Pg(3,n-9); // pars, >
   field<vec> Eleq(n-9); // residuals, <=
   field<vec> Eg(n-9);; // residuals, >
   field<vec> tmp; // output of quickreg
-  vec vnce(n-9); // make sure indexes correspond with actual x and y data just to keep things easier
+  vec vnce(n-9); 
   for(uword j=4; j<n-5; j++){ // require at least 5 observations
-    tmp = quickreg(x(span(0,j)), y(span(0,j)), nnot); // <=
+    tmp = quickreg(x(span(0,j)), y(span(0,j)), 0); // <= nnot
     Pleq.col(j-4) = tmp(0); // pars for <=
     Eleq(j-4) = tmp(1); // residuals for <= (different length depending on split)
-    tmp = quickreg(x(span(j+1,n-1)), y(span(j+1,n-1)), nnot); // >
+    tmp = quickreg(x(span(j+1,n-1)), y(span(j+1,n-1)), 0); // > nnot
     Pg.col(j-4) = tmp(0); // pars for >
     Eg(j-4) = tmp(1); // residuals for >
     vnce(j-4) = Pleq(2,j-4) + Pg(2,j-4); // total variance
   }
   uword imin = index_min(vnce);
-  double cut = (x_sorted(imin+4) + x_sorted(imin+5))/2;
+  double cut = (x(imin+4) + x(imin+5))/2;
   // Rcpp::Rcout << imin << endl;// [[Rcpp::export]]
   vec pars = {Pleq(0,imin), Pleq(1,imin), Pg(0,imin), Pg(1,imin), Pleq(2,imin), Pg(2,imin), vnce_na, cut};
   out(0) = pars; // a<=, b<=, a>, b>, sig<=, sig>, sig NA, c
@@ -107,7 +107,7 @@ arma::field<vec> best_split(arma::mat X, // predictors
   field<vec> out = find_cut(X.col(candidates(min_idx)), y, ind); // re-running find_cut here to keep things clean
   // clunky but effective
   vec par_out(9);
-  par_out(0) = min_idx;
+  par_out(0) = candidates(min_idx);
   par_out(span(1,8)) = out(0);
   out(0) = par_out;
   return(out); // for find_cut() see function above
@@ -156,23 +156,23 @@ arma::uvec field_obs(arma::field<vec> E, arma::uword n){
 
 // Core function to call
 // [[Rcpp::export]]
-Rcpp::List RegTree(arma::vec y, // response (no missing obs)
-                   arma::mat X, // predictors (missing obs OK)
-                   arma::uword max_nodes = 31,
-                   double threshold = 0.01){ // required improvement in variance to continue
+arma::mat RegTree(arma::vec y, // response (no missing obs)
+          arma::mat X, // predictors (missing obs OK)
+          arma::uword max_nodes = 31){ 
   // Bag each tree by randomly selecting observations
   double T = X.n_rows;
-  // uvec to_keep = select_rnd(T, ceil(0.632*T));
-  // X = X.rows(to_keep); // this shuffles X and y but it shouldn't matter
-  // y = y(to_keep);
+  uvec to_keep = select_rnd(T, ceil(0.632*T));
+  X = X.rows(to_keep); // this shuffles X and y but it shouldn't matter
+  y = y(to_keep);
   double xnc = X.n_cols;
-  uword n = xnc; // ceil(xnc/3); // number of candidates to use at each split
+  uword n = ceil(xnc/3); // number of candidates to use at each split
   mat Tree(max_nodes, 9, fill::zeros);
   Tree(0,5) = mean(y); // unconditional mean
   Tree(0,6) = 0; // beta is zero for the original node
   Tree(0,7) = sum(square(y-Tree(0,5))); // unconditional var
   mat leaves; vec par; uvec fobs; mat tmp_tree;
-  uvec leaf_idx; double var_new = 0;
+  uvec leaf_idx; 
+  // double var_new = 0;
   field<vec> E(max_nodes);
   field<uvec> I(max_nodes);
   E(0) = y - Tree(0,5); // residuals are demeaned values of y
@@ -180,7 +180,7 @@ Rcpp::List RegTree(arma::vec y, // response (no missing obs)
   field<vec> tmp; // temp output from best_splits()
   uword i = 0;
   uword j = 0;
-  double var_old = Tree(0,7); // volatility on previous node
+  // double var_old = Tree(0,7); // volatility on previous node
   while(i+2<max_nodes){
     tmp = best_split(X.rows(I(j)), E(j), I(j), n);
     par = tmp(0);
@@ -210,25 +210,22 @@ Rcpp::List RegTree(arma::vec y, // response (no missing obs)
     // Find the leaf with the maximum variance
     leaves = Tree.rows(leaf_idx); // terminal nodes (i.e. leaves). 
     // Rcpp::Rcout << Tree.rows(0,10) << endl;
-    var_new = sum(par(span(4,6))); // volatility at new node
+    // var_new = sum(par(span(4,6))); // volatility at new node
     // Rcpp::Rcout << "old = " << var_old << "new = " << var_new << "next old = " << Tree(j,6) << endl;
-    Rcpp::Rcout << (Tree(j,7) - var_new)/Tree(j,7) << endl;
+    // Rcpp::Rcout << (Tree(j,7) - var_new)/Tree(j,7) << endl;
     // if((var_old - var_new)/var_old < threshold) break; // if volatility doesn't improve, break loop
     i += 2; // split result in 2 new rows
     if(leaf_idx.n_elem==0) break;
     j = leaf_idx(index_max(leaves.col(7))); // index of leaf with max volatility to work on next
   }
-  Rcpp::Rcout << "A" << endl;
-  Rcpp::List rtrn;
-  mat tree = Tree.rows(0,i);
-  Rcpp::Rcout << "C" << endl;
-  arma::field<vec> Eout = E.rows(0,i);
-  Rcpp::Rcout << "D" << endl;
-  arma::field<uvec> Iout = I.rows(0,i);
-  rtrn["Tree"] = tree;
-  rtrn["E"] = Eout;
-  rtrn["I"] = Iout;
-  return(rtrn);
+  // Rcpp::List rtrn;
+  // mat tree = Tree.rows(0,i);
+  // arma::field<vec> Eout = E.rows(0,i);
+  // arma::field<uvec> Iout = I.rows(0,i);
+  // rtrn["Tree"] = tree;
+  // rtrn["E"] = Eout;
+  // rtrn["I"] = Iout;
+  return(Tree.rows(0,i));
 }
 
 // Fit a single observation using the estimated tree
@@ -236,12 +233,13 @@ Rcpp::List RegTree(arma::vec y, // response (no missing obs)
 double FitVec(arma::vec x,
               arma::mat Tree,
               arma::uword maxit = 1000){
-  double j = 0; double it=0; double y=0;
+  double j = 0; double it=0; double y=0; double i = 0;
   while(Tree(j,8) != 1 && it<maxit){
     if(!std::isfinite(x(Tree(j,0)))){
       return(y);
     }else{
-      y += Tree(j,5) + Tree(j,6)*x(Tree(j,0)); // need to use the split here too!!!!!
+      y += Tree(j,5) + Tree(j,6)*x(i); 
+      i = Tree(j,0);
       if(x(Tree(j,0))>Tree(j,1)){
         j = Tree(j,3);
       }else{
@@ -250,7 +248,7 @@ double FitVec(arma::vec x,
       it++;
     }
   }
-  y += Tree(j,5) + Tree(j,6)*x(Tree(j,0)); // terminal node (leaf)
+  y += Tree(j,5) + Tree(j,6)*x(i); // terminal node (leaf)
   return(y);
 }
 
@@ -265,19 +263,18 @@ arma::vec FitMat(arma::mat X,
   return(Mu);
 }
 
-// // Draw 'draws' number of trees
-// // [[Rcpp::export]]
-// arma::field<arma::mat> RegForest(arma::vec y, // response (no missing obs)
-//                            arma::mat X, // predictors (missing obs OK)
-//                            arma::uword max_nodes = 31,
-//                            double threshold = 0.01,
-//                            arma::uword draws = 500){
-//   field<mat> Trees(draws);
-//   for(uword j = 0; j<draws; j++){
-//     Trees(j) = RegTree(y, X, max_nodes, threshold);
-//   }
-//   return(Trees);
-// }
+// Draw 'draws' number of trees
+// [[Rcpp::export]]
+arma::field<arma::mat> RegForest(arma::vec y, // response (no missing obs)
+                           arma::mat X, // predictors (missing obs OK)
+                           arma::uword max_nodes = 31, // try 15 too
+                           arma::uword draws = 1000){
+  field<mat> Trees(draws);
+  for(uword j = 0; j<draws; j++){
+    Trees(j) = RegTree(y, X, max_nodes);
+  }
+  return(Trees);
+}
 
 // Fit output from RegForest
 // [[Rcpp::export]]

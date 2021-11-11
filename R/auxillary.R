@@ -19,6 +19,27 @@ pretty_plot <- function(X, x = NULL, lwd = 2, xlab = "Date", ylab = "", legend_p
   title(title)
 }
 
+first_split <- function(Trees, X_names = NULL){
+  idx <- sapply(Trees, function(j) j[1,1]) + 1
+  tab <- table(idx)
+  if(!is.null(X_names)) names(tab) <- X_names[as.numeric(names(tab))]
+  return(sort(tab, decreasing = TRUE))
+}
+
+get_all_splits <- function(Tree){
+  Tree <- Tree[Tree[,9] != 1, ]
+  return(Tree[,1])
+}
+
+all_splits <- function(Trees, X_names = NULL){
+  idx <- sapply(Trees, get_all_splits)
+  if(is.list(idx)) idx <- do.call("c", idx)
+  idx <- idx + 1
+  tab <- table(idx)
+  if(!is.null(X_names)) names(tab) <- X_names[as.numeric(names(tab))]
+  return(sort(tab, decreasing = TRUE))
+}
+
 reg_forest <- function(y, X, max_nodes = 64, draws = 1000, steps = 1, treehugger = TRUE){
   y <- c(y)
   X <- as.matrix(X)
@@ -28,31 +49,18 @@ reg_forest <- function(y, X, max_nodes = 64, draws = 1000, steps = 1, treehugger
   
   Trees <- RegForest(y[y_finite], X[y_finite, ], max_nodes, draws) # estimate model
   
+  cnames <- colnames(X)
+  fstsplt <- first_split(Trees, cnames)
+  allsplt <- all_splits(Trees, cnames)
+  
   fit <- FitField(X[seq(last_period), ], Trees) # in sample fit
   out <- list(fit = fit, true_vals = y[seq(last_period)])
   if(treehugger) out$Trees <- Trees
+  out$first_split <- fstsplt
+  out$all_splits <- allsplt
+  out$X_names <- cnames
   return(out)
 }
-
-first_split <- function(Trees, X_names = NULL){
-  idx <- sapply(Trees, function(j) j[1,1]) + 1
-  tab <- table(idx)
-  if(!is.null(X_names)) names(tab) <- X_names[as.numeric(names(tab))]
-  return(sort(tab, decreasing = TRUE))
-}
-
-get_all_splits <- function(Tree){
-  Tree <- Tree[Tree[,8] != 1, ]
-  return(Tree[,1])
-}
-
-all_splits <- function(Trees, X_names = NULL){
-  idx <- sapply(Trees, get_all_splits) + 1
-  tab <- table(idx)
-  if(!is.null(X_names)) names(tab) <- X_names[as.numeric(names(tab))]
-  return(sort(tab, decreasing = TRUE))
-}
-
 
 
 # x <- X[359, ]

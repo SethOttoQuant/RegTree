@@ -27,45 +27,45 @@ DT[ , pub_date := as.Date(pub_date)]
 
 DT <- DT[!series_name%in%c("non farm payrolls sa", "crude oil rigs sa")]
 
-# --- for early plots in slides ----------------------------------------------------
-
-fred_series <- c("CPIAUCSL", "PCEPI")
-inflation <-lapply(fred_series, FUN = Get_FRED_Data)  
-inflation <- rbindlist(inflation)
-inflation <- dcast(inflation, ref_date ~ series_name)
-names(inflation) <- c("ref_date", "CPI level", "PCE level")
-inflation[ , CPI := (1+pct_chng(`CPI level`))^12-1]
-inflation[ , PCE := (1+pct_chng(`PCE level`))^12-1]
-pretty_plot(x = inflation$ref_date, X = as.matrix(inflation[, .(CPI, PCE)]), title = "Inflation Measures")
-
-# dev.print(png, filename = "C:/Users/seton/Dropbox/Quantagon/inflation_nowcasting/pce_cpi.png", width = 1400, height = 900, res = 200)
-
-vs <- tail(inflation[ , .(ref_date, `CPI level`, CPI)], 12)
-vs[ , `CPI level` := 3*`CPI level`/vs$`CPI level`[1]]
-tmp <- vs$`CPI level`
-ig <- 1.04^(1/12)
-ig <- ig^seq(6)
-tmp[7:12] <- tmp[6]*ig
-
-X <- cbind(tmp - 3, vs$`CPI level`-3, vs$CPI)
-
-matplot(vs$ref_date, X, type = 'l', lty = c(2,1,1), col = c("black", "black", "deeppink"), lwd = 2, xlab = "Date")
-grid(col = "lightslategrey")
-legend("topleft", c("4% Inflation in Levels", "CPI level", "CPI percent change"),
-       col = c("black", "black", "deeppink"), lty = c(2,1,1), lwd = 2) #  bty = "n"
-title("Inflation vs. Price Level")
-
-dev.print(png, filename = "C:/Users/seton/Dropbox/Quantagon/inflation_nowcasting/cpi_inf_v_lev.png", width = 1400, height = 900, res = 175)
-
-keep_small <- c("consumer price index cpi",
-                "Brent", "gasoline prices weekly",
-                "corporate 10y t bill spread")
-dt <- DT[series_name%in%keep_small]
-dt <- dcast(dt, ref_date ~ series_name, value.var = "value")
-dt <- dt[ref_date >= as.Date("2021-08-31")]
-write.csv(dt, file = "C:/Users/seton/Dropbox/Quantagon/inflation_nowcasting/MF_example.csv", row.names = FALSE, na = " ")
-
-# ----------------------------------------------------------------------------
+# # --- for early plots in slides ----------------------------------------------------
+# 
+# fred_series <- c("CPIAUCSL", "PCEPI")
+# inflation <-lapply(fred_series, FUN = Get_FRED_Data)  
+# inflation <- rbindlist(inflation)
+# inflation <- dcast(inflation, ref_date ~ series_name)
+# names(inflation) <- c("ref_date", "CPI level", "PCE level")
+# inflation[ , CPI := (1+pct_chng(`CPI level`))^12-1]
+# inflation[ , PCE := (1+pct_chng(`PCE level`))^12-1]
+# pretty_plot(x = inflation$ref_date, X = as.matrix(inflation[, .(CPI, PCE)]), title = "Inflation Measures")
+# 
+# # dev.print(png, filename = "C:/Users/seton/Dropbox/Quantagon/inflation_nowcasting/pce_cpi.png", width = 1400, height = 900, res = 200)
+# 
+# vs <- tail(inflation[ , .(ref_date, `CPI level`, CPI)], 12)
+# vs[ , `CPI level` := 3*`CPI level`/vs$`CPI level`[1]]
+# tmp <- vs$`CPI level`
+# ig <- 1.04^(1/12)
+# ig <- ig^seq(6)
+# tmp[7:12] <- tmp[6]*ig
+# 
+# X <- cbind(tmp - 3, vs$`CPI level`-3, vs$CPI)
+# 
+# matplot(vs$ref_date, X, type = 'l', lty = c(2,1,1), col = c("black", "black", "deeppink"), lwd = 2, xlab = "Date")
+# grid(col = "lightslategrey")
+# legend("topleft", c("4% Inflation in Levels", "CPI level", "CPI percent change"),
+#        col = c("black", "black", "deeppink"), lty = c(2,1,1), lwd = 2) #  bty = "n"
+# title("Inflation vs. Price Level")
+# 
+# dev.print(png, filename = "C:/Users/seton/Dropbox/Quantagon/inflation_nowcasting/cpi_inf_v_lev.png", width = 1400, height = 900, res = 175)
+# 
+# keep_small <- c("consumer price index cpi",
+#                 "Brent", "gasoline prices weekly",
+#                 "corporate 10y t bill spread")
+# dt <- DT[series_name%in%keep_small]
+# dt <- dcast(dt, ref_date ~ series_name, value.var = "value")
+# dt <- dt[ref_date >= as.Date("2021-08-31")]
+# write.csv(dt, file = "C:/Users/seton/Dropbox/Quantagon/inflation_nowcasting/MF_example.csv", row.names = FALSE, na = " ")
+# 
+# # ----------------------------------------------------------------------------
 
 # load commodity prices
 CM <- fread("C:/Users/seton/Dropbox/market/commod_data.csv") # load data

@@ -27,7 +27,7 @@ first_split <- function(Trees, X_names = NULL){
 }
 
 get_all_splits <- function(Tree){
-  Tree <- Tree[Tree[,9] != 1, ]
+  Tree <- Tree[Tree[,9] != 1, ,drop=FALSE]
   return(Tree[,1])
 }
 
@@ -40,22 +40,33 @@ all_splits <- function(Trees, X_names = NULL){
   return(sort(tab, decreasing = TRUE))
 }
 
-reg_forest <- function(y, X, max_nodes = 64, draws = 1000, steps = 1, treehugger = TRUE){
+reg_forest <- function(y, X, max_nodes = 64, draws = 1000, steps = 1, regression = TRUE, return_trees = TRUE){
   y <- c(y)
   X <- as.matrix(X)
   y_finite <- is.finite(y) # fit model on periods in which y is finite
   last_period <- max(which(y_finite)) + steps # the period we want to predict
-  X <- X[ ,is.finite(X[last_period, ])] # if X not observed in the period we wish to predict, drop it
+  k <- min(NROW(X), last_period)
+  X <- X[ ,is.finite(X[k, ])] # if X not observed in the period we wish to predict, drop it
   
-  Trees <- RegForest(y[y_finite], X[y_finite, ], max_nodes, draws) # estimate model
+  if(regression){
+    Trees <- RegForest(y[y_finite], X[y_finite, ], max_nodes, draws) # estimate model
+  }else{
+    Trees <- RndForest(y[y_finite], X[y_finite, ], max_nodes, draws) # estimate model
+  }
+  
   
   cnames <- colnames(X)
   fstsplt <- first_split(Trees, cnames)
   allsplt <- all_splits(Trees, cnames)
   
-  fit <- FitField(X[seq(last_period), ], Trees) # in sample fit
-  out <- list(fit = fit, true_vals = y[seq(last_period)])
-  if(treehugger) out$Trees <- Trees
+  if(regression){
+    fit <- FitField(X[seq(k), ], Trees) # in sample fit
+  }else{
+    fit <- StdFitField(X[seq(k), ], Trees) # in sample fit
+  }
+  
+  out <- list(fit = fit, true_vals = y[seq(k)])
+  if(return_trees) out$Trees <- Trees
   out$first_split <- fstsplt
   out$all_splits <- allsplt
   out$X_names <- cnames

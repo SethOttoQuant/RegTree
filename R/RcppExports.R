@@ -41,3 +41,35 @@ FitField <- function(X, Trees) {
     .Call('_RegTree_FitField', PACKAGE = 'RegTree', X, Trees)
 }
 
+find_scut <- function(x, y) {
+    .Call('_RegTree_find_scut', PACKAGE = 'RegTree', x, y)
+}
+
+best_ssplit <- function(X, y, n) {
+    .Call('_RegTree_best_ssplit', PACKAGE = 'RegTree', X, y, n)
+}
+
+node_conditions <- function(Tree, j) {
+    .Call('_RegTree_node_conditions', PACKAGE = 'RegTree', Tree, j)
+}
+
+StdRegTree <- function(y, X, max_nodes = 64L, threshold = 0.01) {
+    .Call('_RegTree_StdRegTree', PACKAGE = 'RegTree', y, X, max_nodes, threshold)
+}
+
+FitSVec <- function(x, Tree, maxit = 1000L) {
+    .Call('_RegTree_FitSVec', PACKAGE = 'RegTree', x, Tree, maxit)
+}
+
+FitSMat <- function(X, Tree) {
+    .Call('_RegTree_FitSMat', PACKAGE = 'RegTree', X, Tree)
+}
+
+RndForest <- function(y, X, max_nodes = 64L, threshold = 0.01, draws = 500L) {
+    .Call('_RegTree_RndForest', PACKAGE = 'RegTree', y, X, max_nodes, threshold, draws)
+}
+
+StdFitField <- function(X, Trees) {
+    .Call('_RegTree_StdFitField', PACKAGE = 'RegTree', X, Trees)
+}
+

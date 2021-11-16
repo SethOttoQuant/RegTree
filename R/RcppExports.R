@@ -21,8 +21,8 @@ testfun <- function(x) {
     .Call('_RegTree_testfun', PACKAGE = 'RegTree', x)
 }
 
-RegTree <- function(y, X, max_nodes = 31L) {
-    .Call('_RegTree_RegTree', PACKAGE = 'RegTree', y, X, max_nodes)
+RegTree <- function(y, X, max_nodes = 31L, bag_rows = 0.632, bag_cols = 0.333) {
+    .Call('_RegTree_RegTree', PACKAGE = 'RegTree', y, X, max_nodes, bag_rows, bag_cols)
 }
 
 FitVec <- function(x, Tree, maxit = 1000L) {

@@ -75,15 +75,17 @@ BEGIN_RCPP
 END_RCPP
 }
 // RegTree
-arma::mat RegTree(arma::vec y, arma::mat X, arma::uword max_nodes);
-RcppExport SEXP _RegTree_RegTree(SEXP ySEXP, SEXP XSEXP, SEXP max_nodesSEXP) {
+arma::mat RegTree(arma::vec y, arma::mat X, arma::uword max_nodes, double bag_rows, double bag_cols);
+RcppExport SEXP _RegTree_RegTree(SEXP ySEXP, SEXP XSEXP, SEXP max_nodesSEXP, SEXP bag_rowsSEXP, SEXP bag_colsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< arma::vec >::type y(ySEXP);
     Rcpp::traits::input_parameter< arma::mat >::type X(XSEXP);
     Rcpp::traits::input_parameter< arma::uword >::type max_nodes(max_nodesSEXP);
-    rcpp_result_gen = Rcpp::wrap(RegTree(y, X, max_nodes));
+    Rcpp::traits::input_parameter< double >::type bag_rows(bag_rowsSEXP);
+    Rcpp::traits::input_parameter< double >::type bag_cols(bag_colsSEXP);
+    rcpp_result_gen = Rcpp::wrap(RegTree(y, X, max_nodes, bag_rows, bag_cols));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -145,7 +147,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_RegTree_find_cut", (DL_FUNC) &_RegTree_find_cut, 3},
     {"_RegTree_best_split", (DL_FUNC) &_RegTree_best_split, 4},
     {"_RegTree_testfun", (DL_FUNC) &_RegTree_testfun, 1},
-    {"_RegTree_RegTree", (DL_FUNC) &_RegTree_RegTree, 3},
+    {"_RegTree_RegTree", (DL_FUNC) &_RegTree_RegTree, 5},
     {"_RegTree_FitVec", (DL_FUNC) &_RegTree_FitVec, 3},
     {"_RegTree_FitMat", (DL_FUNC) &_RegTree_FitMat, 2},
     {"_RegTree_RegForest", (DL_FUNC) &_RegTree_RegForest, 4},

@@ -31,8 +31,18 @@ get_all_splits <- function(Tree){
   return(Tree[,1])
 }
 
-all_splits <- function(Trees, X_names = NULL){
-  idx <- sapply(Trees, get_all_splits)
+std_all_splits <- function(Tree){
+  Tree <- Tree[Tree[,8] != 1, ,drop=FALSE]
+  return(Tree[,1])
+}
+
+all_splits <- function(Trees, X_names = NULL, regression = TRUE){
+  if(regression){
+    idx <- sapply(Trees, get_all_splits)
+  }else{
+    idx <- sapply(Trees, std_all_splits)
+  }
+  
   if(is.list(idx)) idx <- do.call("c", idx)
   idx <- idx + 1
   tab <- table(idx)
@@ -40,7 +50,7 @@ all_splits <- function(Trees, X_names = NULL){
   return(sort(tab, decreasing = TRUE))
 }
 
-reg_forest <- function(y, X, max_nodes = 64, draws = 1000, steps = 1, regression = TRUE, return_trees = TRUE){
+reg_forest <- function(y, X, max_nodes = 31, draws = 1000, steps = 1, regression = TRUE, return_trees = TRUE){
   y <- c(y)
   X <- as.matrix(X)
   y_finite <- is.finite(y) # fit model on periods in which y is finite
@@ -51,13 +61,12 @@ reg_forest <- function(y, X, max_nodes = 64, draws = 1000, steps = 1, regression
   if(regression){
     Trees <- RegForest(y[y_finite], X[y_finite, ], max_nodes, draws) # estimate model
   }else{
-    Trees <- RndForest(y[y_finite], X[y_finite, ], max_nodes, draws) # estimate model
+    Trees <- RndForest(y[y_finite], X[y_finite, ], max_nodes = max_nodes, threshold = 0.01, draws = draws) # estimate model
   }
-  
   
   cnames <- colnames(X)
   fstsplt <- first_split(Trees, cnames)
-  allsplt <- all_splits(Trees, cnames)
+  allsplt <- all_splits(Trees, cnames, regression)
   
   if(regression){
     fit <- FitField(X[seq(k), ], Trees) # in sample fit

@@ -43,7 +43,7 @@ grid()
 legend("bottomleft", c("First Split", "Second Split", "Third Split"), lty = 1, lwd = 2,
        col = c("deeppink", "deepskyblue3", "green3"))
 title("Regression Leaves")
-dev.print(png, filename = "C:/Users/seton/Dropbox/system2/inflation/regression_leaf.png", width = 1000, height = 900, res = 150)
+# dev.print(png, filename = "C:/Users/seton/Dropbox/system2/inflation/regression_leaf.png", width = 1000, height = 900, res = 150)
 
 
 
@@ -58,7 +58,7 @@ grid()
 legend("bottomleft", c("First Split", "Second Split", "Third Split"), lty = 1, lwd = 2,
        col = c("deeppink", "deepskyblue3", "green3"))
 title("Standard Leaves")
-dev.print(png, filename = "C:/Users/seton/Dropbox/system2/inflation/standard_leaf.png", width = 1000, height = 900, res = 150)
+# dev.print(png, filename = "C:/Users/seton/Dropbox/system2/inflation/standard_leaf.png", width = 1000, height = 900, res = 150)
 
 
 

@@ -19,15 +19,20 @@ arma::uvec select_rnd(arma::uword m, // number of elements
 arma::field<arma::vec> quickreg(arma::vec x, // no missing
                                 arma::vec y, // no missing
                                 double r){ // ridge parameter
-  mat X(x.n_elem, 2, fill::ones);
-  X.col(1) = x;
-  mat I = r*eye(2,2);
+  double n = x.n_elem+r;
   vec par(3);
-  mat ab = solve(trans(X)*X + I, trans(X)*y);
-  vec e = y - X*ab;
+  double sx = sum(x);
+  double sy = sum(y);
+  double xx = sum(square(x)) + r;
+  double xy = as_scalar(trans(x)*y);
+  double dt = n*xx - sx*sx;
+  vec ab(2);
+  ab(0) = (xx*sy - sx*xy)/dt;
+  ab(1) = (-sx*sy + n*xy)/dt;
+  vec e = y - ab(0) - ab(1)*x;
   double sig = sum(square(e));
   field<vec> out(2);
-  par(span(0,1)) = ab.col(0);
+  par(span(0,1)) = ab; // ab.col(0);
   par(2) = sig;
   out(0) = par; // parameters: intercept, beta, sigma
   out(1) = e; // residuals
@@ -170,7 +175,7 @@ arma::mat RegTree(arma::vec y, // response (no missing obs)
   X = X.rows(to_keep); // this shuffles X and y but it shouldn't matter
   y = y(to_keep);
   double xnc = X.n_cols;
-  uword n =  xnc; // ceil(xnc/3); // number of candidates to use at each split
+  uword n =  ceil(bag_cols*xnc); // ceil(xnc/3); // number of candidates to use at each split
   mat Tree(max_nodes, 9, fill::zeros);
   Tree(0,5) = mean(y); // unconditional mean
   Tree(0,6) = 0; // beta is zero for the original node

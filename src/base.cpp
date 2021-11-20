@@ -2,7 +2,6 @@
 
 #include <RcppArmadillo.h>
 #include <Rcpp/Benchmark/Timer.h>
-#include <algorithm> 
 using namespace arma;
 using namespace Rcpp;
 // #include "utils.h"
@@ -164,18 +163,18 @@ arma::uvec field_obs(arma::field<vec> E, arma::uword n){
 // [[Rcpp::export]]
 arma::mat RegTree(arma::vec y, // response (no missing obs)
           arma::mat X, // predictors (missing obs OK)
-          arma::uword max_nodes = 31,
-          double bag_rows = 0.632,
-          double bag_cols = 0.333){ 
+          arma::uword max_nodes = 31){
+          // double bag_rows = 0.632,
+          // double bag_cols = 0.333){ 
   // Bag each tree by randomly selecting observations
-  bag_rows = std::min(1.0,std::abs(bag_rows)); // safety first
-  bag_rows = std::min(1.0,std::abs(bag_cols)); // safety first
+  // bag_rows = std::min(1.0,std::abs(bag_rows)); // safety first
+  // bag_rows = std::min(1.0,std::abs(bag_cols)); // safety first
   double T = X.n_rows;
-  uvec to_keep = select_rnd(T, ceil(bag_rows*T));
+  uvec to_keep = select_rnd(T, ceil(0.632*T));
   X = X.rows(to_keep); // this shuffles X and y but it shouldn't matter
   y = y(to_keep);
   double xnc = X.n_cols;
-  uword n =  ceil(bag_cols*xnc); // ceil(xnc/3); // number of candidates to use at each split
+  uword n = ceil(xnc/3); // number of candidates to use at each split
   mat Tree(max_nodes, 9, fill::zeros);
   Tree(0,5) = mean(y); // unconditional mean
   Tree(0,6) = 0; // beta is zero for the original node

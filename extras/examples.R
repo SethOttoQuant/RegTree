@@ -55,7 +55,7 @@ run_sim <- function(n){
 }
 
 A <- Sys.time()
-Out <- lapply(rep(200, 100), FUN = run_sim) # 200 observations, 100 simulations (it's slow)
+Out <- lapply(rep(200, 10), FUN = run_sim) # 200 observations, 100 simulations (it's slow)
 B <- Sys.time()
 B - A
 

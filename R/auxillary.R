@@ -1,5 +1,45 @@
 
 
+fake_pca <- function(W){
+  W[is.na(W)] <- 0
+  S = t(W)%*%W/NROW(W)
+  eg <- eigen(S, symmetric = TRUE)
+  C <- W%*%eg$vectors
+  return(C)
+}
+
+
+# backfill <- function(x){
+#   x_obs <- which(!is.na(x))
+#   x_na <- which(is.na(x))
+#   x_na <- x_na[x_na<max(x_obs)] # don't fill NA values in tail
+#   k <- length(x_na)
+#   if(k==0) return(x)
+#   for(j in seq(k)){
+#     idx <- min(x_obs[x_obs>x_na[j]])
+#     x[x_na[j]] <- x[idx] 
+#   }
+#   return(x)
+# }
+
+backfill <- function(x) {   
+  ind = which(!is.na(x))      # get positions of nonmissing values
+  if(is.na(x[length(x)]))             # if it begins with a missing, add the 
+    ind = c(ind, length(x))        # first position to the indices
+  rep(x[ind], times = diff(c(0, ind)))   # repeat the values at these indices
+  # diffing the indices + length yields how often 
+}  
+
+# must include ref_date and value... other columns optional
+distribute_weekly <- function(df){
+  tmp <- merge(data.table("ref_date"=seq.Date(min(df$ref_date)-6, max(df$ref_date), by = "day")), df, all = TRUE)
+  tmp[ , value := backfill(value)/7]
+  if("pub_date"%in%names(tmp)) tmp[ , pub_date := backfill(pub_date)]
+  if("series_name"%in%names(tmp)) tmp[ , series_name := backfill(series_name)]
+  if("pub_lag"%in%names(tmp)) tmp[ , pub_lag := as.numeric(pub_date - ref_date)]
+  return(tmp)
+}
+
 pretty_plot <- function(X, x = NULL, lwd = 2, xlab = "Date", ylab = "", legend_pos = "bottomleft", title = ""){
   
   if("ref_date"%in%colnames(X)){
@@ -50,13 +90,16 @@ all_splits <- function(Trees, X_names = NULL, regression = TRUE){
   return(sort(tab, decreasing = TRUE))
 }
 
-reg_forest <- function(y, X, max_nodes = 31, draws = 1000, steps = 1, regression = TRUE, return_trees = TRUE){
+reg_forest <- function(y, X, max_nodes = 31, draws = 1000, steps = 1, regression = TRUE, return_trees = TRUE, orthogonal = FALSE){
   y <- c(y)
   X <- as.matrix(X)
   y_finite <- is.finite(y) # fit model on periods in which y is finite
   last_period <- max(which(y_finite)) + steps # the period we want to predict
   k <- min(NROW(X), last_period)
   X <- X[ ,is.finite(X[k, ])] # if X not observed in the period we wish to predict, drop it
+  if(orthogonal){
+    X <- fake_pca(X)
+  }
   
   if(regression){
     Trees <- RegForest(y[y_finite], X[y_finite, ], max_nodes, draws) # estimate model
@@ -65,8 +108,14 @@ reg_forest <- function(y, X, max_nodes = 31, draws = 1000, steps = 1, regression
   }
   
   cnames <- colnames(X)
-  fstsplt <- first_split(Trees, cnames)
-  allsplt <- all_splits(Trees, cnames, regression)
+  if(!orthogonal){
+    fstsplt <- first_split(Trees, cnames)
+    allsplt <- all_splits(Trees, cnames, regression)
+  }else{
+    fstsplt <- NULL
+    allsplt <- NULL
+  }
+ 
   
   if(regression){
     fit <- FitField(X[seq(k), ], Trees) # in sample fit
@@ -79,6 +128,7 @@ reg_forest <- function(y, X, max_nodes = 31, draws = 1000, steps = 1, regression
   out$first_split <- fstsplt
   out$all_splits <- allsplt
   out$X_names <- cnames
+  out$idx <- seq(k)
   return(out)
 }
 

@@ -93,10 +93,13 @@ CM[ , pub_lag := 1]
 
 DT <- rbind(DT, CM) # one data set
 
+DT <- DT[!(series_name%in%c("gasoline prices sa", "gasoline prices", "gasoline prices weekly sa" ))]
+unique(DT$series_name)
+
 # --- Prediction with current dataset ----------------------
 
 dat <- process_MF(LHS = DT[series_name == "consumer price index cpi"], RHS = DT[series_name != "consumer price index cpi"],
-                  LHS_lags = 3, RHS_lags = 0, as_of = NULL, frq = "month") # aggregate as.Date("2021-11-09")
+                  LHS_lags = 3, RHS_lags = 1, as_of = NULL, frq = "month") # aggregate as.Date("2021-11-09")
 dt <- process(dat, lib = LIB) # make stationary
 cpi <- dt[series_name == "consumer price index cpi 0"]
 y <- cpi$value
@@ -105,6 +108,7 @@ dates <- X$ref_date
 X <- as.matrix(X[,-1,drop=FALSE])
 
 out <- reg_forest(y, X, steps = 1) # estimate model
+
 # undo processing
 last_obs <- nrow(out$fit)
 fit <- cpi$standardize_scale[seq(last_obs)]*out$fit + cpi$standardize_center[seq(last_obs)] + cpi$low_frequency_trend[seq(last_obs)]
@@ -117,14 +121,19 @@ res <- merge(true_val[ , .(ref_date, value)], fit, by = "ref_date", all = TRUE)
 setnames(res, "value", "true value")
 res[ , `true value`:= 100*`true value`]
 res[ , `fitted cpi` := 100*`fitted cpi`]
+gas <- dt[series_name == "gasoline prices weekly 0"]
+gas[ , `gas price` := value/2]
+res <- merge(res, gas[, .(ref_date, `gas price`)], all.x = TRUE)
 pretty_plot(tail(res, 48), ylab = "Monthly Percent Change", title = "CPI Nowcast")
 
 # dev.print(png, filename = "~/Dropbox/system2/inflation/cpi_november.png", width = 1400, height = 900, res = 150)
 
+tail(res)
 
 
-# lev <- cpi$level_value
-# exp(lev[max(which(is.finite(lev)))] + 0.00566)
+(1+tail(res$`fitted cpi`,1)/100)^12
+lev <- cpi$level_value
+exp(lev[max(which(is.finite(lev)))] + tail(res$`fitted cpi`,1))
 
 # Analysis: which series contribute the most?
 

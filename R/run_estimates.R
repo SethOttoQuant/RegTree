@@ -1,5 +1,6 @@
 
 run_forecast <- function(tgt, dt, lib, regress = FALSE){
+  regress = as.logical(regress)
   MF <- process_MF(dt[series_name == tgt], dt[series_name != tgt], LHS_lags = 3, pub_date_name = NULL)
   X <- process(MF, lib, detrend = TRUE, pub_date_name = NULL)
   W <- dcast(X, ref_date ~ series_name, value.var = "value") # wide data
@@ -39,7 +40,8 @@ run_forecast <- function(tgt, dt, lib, regress = FALSE){
   return(out)
 }
 
-run_backtest <- function(tgt, dt, lib, regress = FALSE, periods = 24){
+run_backtest <- function(tgt, dt, lib, regress = FALSE, periods = 24, ){
+  regress = as.logical(regress)
   as_of_dates <- c(as.Date(tail(dt[series_name == tgt]$pub_date, periods) - 2)) # include latest ?
   res <- data.table()
   # as_of_dates <- head(as_of_dates,6)

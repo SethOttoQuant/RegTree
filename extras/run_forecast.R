@@ -1,10 +1,12 @@
+if(!"RegTree"%in%installed.packages()){
+  install.packages("~/Code/ac-portal/lib/RegTree", repos = NULL)
+}
+
 # Load needed libraries
 library(RegTree)
 library(dateutils)
 library(data.table)
-library(macroeconomicdata)
-library(tradingeconomics)
-login("068185ACDE82499:864AE58966F24E9")
+
 
 args <- commandArgs(trailingOnly = TRUE)
 

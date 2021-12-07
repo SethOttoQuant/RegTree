@@ -5,7 +5,7 @@ Version: 0.0.1
 Author: Seth Leonard
 Maintainer: Seth Leonard <seth@ottoquant.com>
 Description: Random forest for continuous variables with missing observations
-Depends: R (>= 3.5.0)
+Depends: R (>= 3.4.0)
 License: (c)
 Suggests: 
   rmarkdown,

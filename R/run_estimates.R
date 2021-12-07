@@ -1,5 +1,8 @@
 
 run_forecast <- function(tgt, dt, lib, regress = FALSE){
+  if(!"series_name"%in%names(dt)) stop("Column 'series_name' is required")
+  if(!"ref_date"%in%names(dt)) stop("Column 'ref_date' is required")
+  if(!"value"%in%names(dt)) stop("Column 'value' is required")
   regress = as.logical(regress)
   MF <- process_MF(dt[series_name == tgt], dt[series_name != tgt], LHS_lags = 3, pub_date_name = NULL)
   X <- process(MF, lib, detrend = TRUE, pub_date_name = NULL)
@@ -40,9 +43,16 @@ run_forecast <- function(tgt, dt, lib, regress = FALSE){
   return(out)
 }
 
-run_backtest <- function(tgt, dt, lib, regress = FALSE, periods = 24, ){
+run_backtest <- function(tgt, dt, lib, regress = FALSE, periods = 24, as_of_dates = NULL, days_prior = 2){
+  if(!"series_name"%in%names(dt)) stop("Column 'series_name' is required")
+  if(!"ref_date"%in%names(dt)) stop("Column 'ref_date' is required")
+  if(!"pub_date"%in%names(dt)) stop("Column 'pub_date' is required")
+  if(!"value"%in%names(dt)) stop("Column 'value' is required")
   regress = as.logical(regress)
-  as_of_dates <- c(as.Date(tail(dt[series_name == tgt]$pub_date, periods) - 2)) # include latest ?
+  if(is.null(as_of_dates)){
+    as_of_dates <- c(as.Date(tail(dt[series_name == tgt]$pub_date, periods) - days_prior)) # include latest ?
+  }
+  
   res <- data.table()
   # as_of_dates <- head(as_of_dates,6)
   

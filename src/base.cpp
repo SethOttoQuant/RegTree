@@ -15,7 +15,7 @@ arma::uvec select_rnd(arma::uword m, // number of elements
 }
 
 // [[Rcpp::export]]
-arma::field<arma::vec> quickreg(arma::vec x, // no missing
+arma::field<arma::vec> QuickReg(arma::vec x, // no missing
                                 arma::vec y, // no missing
                                 double r){ // ridge parameter
   double n = x.n_elem+r;
@@ -70,13 +70,13 @@ arma::field<arma::vec> find_cut(arma::vec x, // predictor
   mat Pg(3,n-9); // pars, >
   field<vec> Eleq(n-9); // residuals, <=
   field<vec> Eg(n-9);; // residuals, >
-  field<vec> tmp; // output of quickreg
+  field<vec> tmp; // output of QuickReg
   vec vnce(n-9); 
   for(uword j=4; j<n-5; j++){ // require at least 5 observations
-    tmp = quickreg(x(span(0,j)), y(span(0,j)), 0); // <= nnot
+    tmp = QuickReg(x(span(0,j)), y(span(0,j)), 0); // <= nnot
     Pleq.col(j-4) = tmp(0); // pars for <=
     Eleq(j-4) = tmp(1); // residuals for <= (different length depending on split)
-    tmp = quickreg(x(span(j+1,n-1)), y(span(j+1,n-1)), 0); // > nnot
+    tmp = QuickReg(x(span(j+1,n-1)), y(span(j+1,n-1)), 0); // > nnot
     Pg.col(j-4) = tmp(0); // pars for >
     Eg(j-4) = tmp(1); // residuals for >
     vnce(j-4) = Pleq(2,j-4) + Pg(2,j-4); // total variance
@@ -161,7 +161,7 @@ arma::uvec field_obs(arma::field<vec> E, arma::uword n){
 
 // Core function to call
 // [[Rcpp::export]]
-arma::mat RegTree(arma::vec y, // response (no missing obs)
+arma::mat Reg_Tree(arma::vec y, // response (no missing obs)
           arma::mat X, // predictors (missing obs OK)
           arma::uword max_nodes = 31){
           // double bag_rows = 0.632,
@@ -274,20 +274,20 @@ arma::vec FitMat(arma::mat X,
 
 // Draw 'draws' number of trees
 // [[Rcpp::export]]
-arma::field<arma::mat> RegForest(arma::vec y, // response (no missing obs)
+arma::field<arma::mat> Reg_Forest(arma::vec y, // response (no missing obs)
                            arma::mat X, // predictors (missing obs OK)
                            arma::uword max_nodes = 31, // try 15 too
                            arma::uword draws = 1000){
   field<mat> Trees(draws);
   for(uword j = 0; j<draws; j++){
-    Trees(j) = RegTree(y, X, max_nodes);
+    Trees(j) = Reg_Tree(y, X, max_nodes);
   }
   return(Trees);
 }
 
 // Fit output from RegForest
 // [[Rcpp::export]]
-arma::vec FitField(arma::mat X,
+arma::vec Fit_Field(arma::mat X,
                    arma::field<arma::mat> Trees){
   mat Mu(X.n_rows, Trees.n_elem);
   X = trans(X); //transpose for FitMat

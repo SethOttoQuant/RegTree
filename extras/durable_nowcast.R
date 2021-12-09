@@ -47,7 +47,8 @@ lib <- lib[ , .(series_name, frequency, needs_SA, take_logs, take_diffs)]
 TEnew <- c("MBA Mortgage Market Index") # "MBA Mortgage Refinance Index"
 frednew <- c("TOTBKCR", "RELACBW027SBOG", "CLSACBW027SBOG", "FRGSHPUSM649NCIS", 
              "FRGEXPUSM649NCIS", "DFDHRC1Q027SBEA", "DMOTRC1Q027SBEA", "DREQRC1Q027SBEA",
-             "PCEND", "DODGRC1Q027SBEA", "RETAILIRSA", "R423IRM163SCEN")
+             "PCEND", "DODGRC1Q027SBEA", "RETAILIRSA", "R423IRM163SCEN",
+             "R4232IM163SCEN")
 # all comercial debt, real estate loans, consumer loans, Cass freight shipments (NSA), Cass freigh expenditures (NSA) 
 
 # Additional data from Trading Economics
@@ -58,7 +59,7 @@ setcolorder(dat, names(DT))
 # Additional data from FRED
 frd <- lapply(frednew, FUN = Get_FRED_Data, observation_start = "1990-01-01")
 frd <- rbindlist(frd)
-frd[series_name%in%c("FRGSHPUSM649NCIS", "FRGEXPUSM649NCIS", "PCEND", "RETAILIRSA", "R423IRM163SCEN"), ref_date := end_of_period(ref_date)] # monthly
+frd[series_name%in%c("FRGSHPUSM649NCIS", "FRGEXPUSM649NCIS", "PCEND", "RETAILIRSA", "R423IRM163SCEN", "R4232IM163SCEN"), ref_date := end_of_period(ref_date)] # monthly
 frd[series_name%in%c("DFDHRC1Q027SBEA", "DMOTRC1Q027SBEA", "DREQRC1Q027SBEA", "DODGRC1Q027SBEA"), ref_date := end_of_period(ref_date, period = "quarter")]
 # Seasonally adjust
 frd[series_name == "FRGSHPUSM649NCIS", value := sa_inplace(value, ref_date)]
@@ -71,6 +72,7 @@ frd[series_name == "DODGRC1Q027SBEA", series_name := "pce durable other"]
 frd[series_name == "PCEND", series_name := "pce non durable"]
 frd[series_name=="RETAILIRSA", series_name := "retail inventory sales ratio"]
 frd[series_name=="R423IRM163SCEN", series_name := "wholesale durable inventory sales ratio"]
+frd[series_name=="R4232IM163SCEN", series_name := "wholesale furniture home goods inventory sales ratio"]
 
 setcolorder(frd, names(DT))
 
@@ -137,7 +139,8 @@ selected_pced <- c("personal consumption expenditures durable goods", "personal 
               "car production", "car registrations sa", "durable goods orders ex defense sa", "stock market")
 
 selected_quarterly <- c(selected_pced, "wholesale inventories", "building permits",
-                        "factory orders ex transportation", "wholesale durable inventory sales ratio" )
+                        "factory orders ex transportation", "wholesale durable inventory sales ratio",
+                        "wholesale furniture home goods inventory sales ratio")
 
 # ----- Nowcast durable good consumption -------------------------
 print("Estimating PCE Durable")
@@ -164,7 +167,7 @@ dtout <- dt[series_name%in%c("pce recreation", "pce non durable", "pce durable o
                              "retail inventory sales ratio", "wholesale durable inventory sales ratio",
                              "pce recreation", "personal consumption expenditures services",
                              "personal consumption expenditures durable goods", "pce furniture and home goods",
-                             "pce motor vehicles")]
+                             "pce motor vehicles", "wholesale furniture home goods inventory sales ratio")]
 
 dtout[ , level_value := value]
 dtout[ , value := Diff(log(value))]
@@ -174,9 +177,6 @@ dtout[, max_date := NULL]
 
 
 write.csv(dtout, "/tmp/latest.csv", row.names = FALSE)
-
-
-
 
 
 

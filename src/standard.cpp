@@ -104,7 +104,7 @@ arma::mat node_conditions(arma::mat Tree,
 
 // unconstrained optimization problem
 // [[Rcpp::export]]
-arma::mat StdRegTree(arma::vec y, // response (no missing obs)
+arma::mat Std_Reg_Tree(arma::vec y, // response (no missing obs)
                   arma::mat X, // predictors (missing obs OK)
                   arma::uword max_nodes = 64,
                   double threshold = 0.01){ // required improvement in variance to continue
@@ -200,21 +200,21 @@ arma::vec FitSMat(arma::mat X,
 
 // Draw 'draws' number of trees
 // [[Rcpp::export]]
-arma::field<arma::mat> RndForest(arma::vec y, // response (no missing obs)
+arma::field<arma::mat> Rnd_Forest(arma::vec y, // response (no missing obs)
                                  arma::mat X, // predictors (missing obs OK)
                                  arma::uword max_nodes = 64,
                                  double threshold = 0.01,
                                  arma::uword draws = 500){
   field<mat> Trees(draws);
   for(uword j = 0; j<draws; j++){
-    Trees(j) = StdRegTree(y, X, max_nodes, threshold);
+    Trees(j) = Std_Reg_Tree(y, X, max_nodes, threshold);
   }
   return(Trees);
 }
 
 // Fit output from RegForest
 // [[Rcpp::export]]
-arma::vec StdFitField(arma::mat X,
+arma::vec Std_Fit_Field(arma::mat X,
                    arma::field<arma::mat> Trees){
   mat Mu(X.n_rows, Trees.n_elem);
   X = trans(X); //transpose for FitMat

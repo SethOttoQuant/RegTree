@@ -1,5 +1,14 @@
 
 
+# Calls for C++ functions
+RegForest <- function(y,X,max_nodes = 31, draws = 1000) Reg_Forest(y,X,max_nodes,draws)
+RndForest <- function(y, X, max_nodes = 64, draws = 500) Rnd_Forest(y, X, max_nodes, draws)
+FitField <- function(X,Trees) Fit_Field(X,Trees)
+StdFitField <- function(X,Trees) Std_Fit_Field(X,Trees)
+RegTree <- function(y,X,max_nodes = 31) Reg_Tree(y,X,max_nodes)
+StdRegTree <- function(y,X,max_nodes = 64, threshold = 0.01) Std_Reg_Tree(y,X,max_nodes, threshold)
+quickreg <- function(x,y,r=0) QuickReg(x,y,r)
+
 fake_pca <- function(W){
   W[is.na(W)] <- 0
   S = t(W)%*%W/NROW(W)

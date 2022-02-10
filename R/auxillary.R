@@ -2,11 +2,11 @@
 
 # Calls for C++ functions
 RegForest <- function(y,X,max_nodes = 31, draws = 1000) Reg_Forest(y,X,max_nodes,draws)
-RndForest <- function(y, X, max_nodes = 64, draws = 500) Rnd_Forest(y, X, max_nodes, draws)
+RndForest <- function(y, X, depth_range = c(50,100), draws = 1000) Rnd_Forest(y, X, depth_range, draws)
 FitField <- function(X,Trees) Fit_Field(X,Trees)
 StdFitField <- function(X,Trees) Std_Fit_Field(X,Trees)
 RegTree <- function(y,X,max_nodes = 31) Reg_Tree(y,X,max_nodes)
-StdRegTree <- function(y,X,max_nodes = 64, threshold = 0.01) Std_Reg_Tree(y,X,max_nodes, threshold)
+StdRegTree <- function(y,X,depth_range=c(50,100)) Std_Reg_Tree(y,X,depth_range)
 quickreg <- function(x,y,r=0) QuickReg(x,y,r)
 
 fake_pca <- function(W){
@@ -99,7 +99,7 @@ all_splits <- function(Trees, X_names = NULL, regression = TRUE){
   return(sort(tab, decreasing = TRUE))
 }
 
-reg_forest <- function(y, X, max_nodes = 31, draws = 1000, steps = 1, regression = TRUE, return_trees = TRUE, orthogonal = FALSE){
+reg_forest <- function(y, X, max_nodes = 31, depth_range = c(50,100), draws = 1000, steps = 1, regression = TRUE, return_trees = TRUE, orthogonal = FALSE){
   y <- c(y)
   X <- as.matrix(X)
   y_finite <- is.finite(y) # fit model on periods in which y is finite
@@ -113,7 +113,7 @@ reg_forest <- function(y, X, max_nodes = 31, draws = 1000, steps = 1, regression
   if(regression){
     Trees <- RegForest(y[y_finite], X[y_finite, ], max_nodes, draws) # estimate model
   }else{
-    Trees <- RndForest(y[y_finite], X[y_finite, ], max_nodes = max_nodes, threshold = 0.01, draws = draws) # estimate model
+    Trees <- RndForest(y[y_finite], X[y_finite, ], depth_range=depth_range, draws = draws) # estimate model
   }
   
   cnames <- colnames(X)

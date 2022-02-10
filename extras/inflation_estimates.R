@@ -3,11 +3,11 @@ rm(list=ls()) # clear workspace
 
 library(data.table)
 library(seasonal) # Christoph's package
-library(dateutils) # My own package
+library(dateutils) # My own package, on CRAN
 library(RegTree)
 library(randomForest)
 library(ranger)
-library(macroeconomicdata)
+library(macroeconomicdata) # My own packages
 library(jsonlite)
 library(httr)
 library(tradingeconomics)

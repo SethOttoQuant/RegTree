@@ -41,11 +41,7 @@ arma::vec find_scut(arma::vec x, // predictor
   }
   uword imin = index_min(sum(vnce,0));
   double cut = (x_sorted(imin) + x_sorted(imin+1))/2;
-  // Rcpp::Rcout << imin << endl;// [[Rcpp::export]]
   vec out = {mean(yx(span(0,imin))), mean(yx(span(imin+1, n-1))), vnce(0,imin), vnce(1,imin), vnce_na, cut};
-  // Rcpp::List oot;
-  // oot["vnce"] = vnce;
-  // oot["out"] = out;
   return(out); // less than cut mean, greater than cut mean, less variance, greater variance, NA variance, and cut. 
   
 }
@@ -62,19 +58,11 @@ arma::vec best_ssplit(arma::mat X, // predictors
     splits.col(j) = find_scut(X.col(candidates(j)), y); // find best split for each series
   }
   vec tot_var = trans(sum(splits.rows(2,4),0)); // rows 2:4 contain variance for high, low, and NA values
-  
-  
-  
   uword min_idx = index_min(tot_var); // which series offers least variance in y
   vec out(7); // results vector 
   out(0) = candidates(min_idx); // index of the best one
   out(span(1,6)) = splits.col(min_idx); // other outputs (see below)
-  // Rcpp::List rtrn;
-  // rtrn["splits"] = splits;
-  // rtrn["out"] = out;
   return(out);
-  // format of out:
-  // variable index, mean below, mean above, vol below, vol above, vol NA, cut point 
 }
 
 
@@ -106,23 +94,23 @@ arma::mat node_conditions(arma::mat Tree,
 // [[Rcpp::export]]
 arma::mat Std_Reg_Tree(arma::vec y, // response (no missing obs)
                   arma::mat X, // predictors (missing obs OK)
-                  arma::uword max_nodes = 64,
-                  double threshold = 0.01){ // required improvement in variance to continue
+                  arma::vec depth_range){ // required improvement in variance to continue
   // Bag each tree by randomly selecting observations
   double T = X.n_rows;
   uvec to_keep = selectrnd(T, ceil(0.632*T));
   X = X.rows(to_keep); // this shuffles X and y but it shouldn't matter
   y = y(to_keep);
   double xnc = X.n_cols;
+  uword max_nodes= ceil(as_scalar((depth_range(1)-depth_range(0))*randu<vec>(1) +
+    depth_range(0))); // randomise depth of model
   uword n = ceil(xnc/3); // number of candidates to use at each split
   mat Tree(max_nodes, 8, fill::zeros);
   Tree(0,5) = mean(y); // unconditional mean
   Tree(0,6) = sum(square(y-Tree(0,4))); // unconditional var
   vec split; mat Xtmp = X; vec ytmp = y; mat leaves;
-  mat cndtn; uvec idx; uvec leaf_idx; double var_new = 0;
+  mat cndtn; uvec idx; uvec leaf_idx; 
   uword i = 0;
   uword j = 0;
-  double var_old = Tree(0,6); // volatility on pervious node
   while(i+2<max_nodes){
     split = best_ssplit(Xtmp, ytmp, n);
     Tree(j,0) = split(0); // which variable
@@ -144,10 +132,7 @@ arma::mat Std_Reg_Tree(arma::vec y, // response (no missing obs)
     // Rcpp::Rcout << Tree.rows(0,10) << endl;
     j = leaf_idx(index_max(leaves.col(6))); // index of leaf with max volatility
     i += 2; // split result in 2 new rows
-    var_new = sum(split(span(3,5))); // volatility at new node
-    // Rcpp::Rcout << "old = " << var_old << "new = " << var_new << "next old = " << Tree(j,6) << endl;
-    if((var_old - var_new)/var_old < threshold) break; // if volatility doesn't improve, break loop
-    var_old = Tree(j,6);
+    if(sum(split(span(3,4)))==0) break; // only 1 obs above and below
     // collect conditions for node j
     cndtn = node_conditions(Tree, j); // conditions, i.e. x1>c1, x5>c2, etc... Format is: variable, cut, < (0) or > (1)
     Xtmp = X;
@@ -202,12 +187,11 @@ arma::vec FitSMat(arma::mat X,
 // [[Rcpp::export]]
 arma::field<arma::mat> Rnd_Forest(arma::vec y, // response (no missing obs)
                                  arma::mat X, // predictors (missing obs OK)
-                                 arma::uword max_nodes = 64,
-                                 double threshold = 0.01,
-                                 arma::uword draws = 500){
+                                 arma::vec depth_range,
+                                 arma::uword draws = 1000){
   field<mat> Trees(draws);
   for(uword j = 0; j<draws; j++){
-    Trees(j) = Std_Reg_Tree(y, X, max_nodes, threshold);
+    Trees(j) = Std_Reg_Tree(y, X, depth_range);
   }
   return(Trees);
 }

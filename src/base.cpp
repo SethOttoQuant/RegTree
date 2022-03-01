@@ -6,7 +6,6 @@ using namespace arma;
 using namespace Rcpp;
 // #include "utils.h"
 
-// [[Rcpp::export]]
 arma::uvec select_rnd(arma::uword m, // number of elements
                       arma::uword n){ // number to select
   uvec idx = regspace<uvec>(0,m-1);

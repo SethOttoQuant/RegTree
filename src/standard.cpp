@@ -43,7 +43,6 @@ arma::vec find_scut(arma::vec x, // predictor
   double cut = (x_sorted(imin) + x_sorted(imin+1))/2;
   vec out = {mean(yx(span(0,imin))), mean(yx(span(imin+1, n-1))), vnce(0,imin), vnce(1,imin), vnce_na, cut};
   return(out); // less than cut mean, greater than cut mean, less variance, greater variance, NA variance, and cut. 
-  
 }
 
 // find the best series in X to identify y

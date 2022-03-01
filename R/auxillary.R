@@ -2,11 +2,11 @@
 
 # Calls for C++ functions
 RegForest <- function(y,X,max_nodes = 31, draws = 1000) Reg_Forest(y,X,max_nodes,draws)
-RndForest <- function(y, X, depth_range = c(50,100), draws = 1000) Rnd_Forest(y, X, depth_range, draws)
+RndForest <- function(y, X, min_obs=5, max_nodes=1000, draws = 1000) rforest(y, X, min_obs, max_nodes, draws)
 FitField <- function(X,Trees) Fit_Field(X,Trees)
-StdFitField <- function(X,Trees) Std_Fit_Field(X,Trees)
+StdFitField <- function(X,Trees) fitfield(X,Trees)
 RegTree <- function(y,X,max_nodes = 31) Reg_Tree(y,X,max_nodes)
-StdRegTree <- function(y,X,depth_range=c(50,100)) Std_Reg_Tree(y,X,depth_range)
+StdRegTree <- function(y,X,min_obs=5,max_nodes=1000) regtree(y,X,min_obs,max_nodes)
 quickreg <- function(x,y,r=0) QuickReg(x,y,r)
 
 fake_pca <- function(W){
@@ -80,18 +80,8 @@ get_all_splits <- function(Tree){
   return(Tree[,1])
 }
 
-std_all_splits <- function(Tree){
-  Tree <- Tree[Tree[,8] != 1, ,drop=FALSE]
-  return(Tree[,1])
-}
-
 all_splits <- function(Trees, X_names = NULL, regression = TRUE){
-  if(regression){
-    idx <- sapply(Trees, get_all_splits)
-  }else{
-    idx <- sapply(Trees, std_all_splits)
-  }
-  
+  idx <- sapply(Trees, get_all_splits)
   if(is.list(idx)) idx <- do.call("c", idx)
   idx <- idx + 1
   tab <- table(idx)
@@ -99,7 +89,9 @@ all_splits <- function(Trees, X_names = NULL, regression = TRUE){
   return(sort(tab, decreasing = TRUE))
 }
 
-reg_forest <- function(y, X, max_nodes = 31, depth_range = c(50,100), draws = 1000, steps = 1, regression = TRUE, return_trees = TRUE, orthogonal = FALSE){
+reg_forest <- function(y, X, min_obs=5, max_nodes = "auto", draws = 1000, 
+                       steps = 1, regression = FALSE, return_trees = TRUE, 
+                       orthogonal = FALSE){
   y <- c(y)
   X <- as.matrix(X)
   y_finite <- is.finite(y) # fit model on periods in which y is finite
@@ -109,11 +101,17 @@ reg_forest <- function(y, X, max_nodes = 31, depth_range = c(50,100), draws = 10
   if(orthogonal){
     X <- fake_pca(X)
   }
-  
+  if(max_nodes == "auto"){
+    if(regression){
+      max_nodes = 30
+    }else{
+      max_nodes = 1000
+    }
+  }
   if(regression){
     Trees <- RegForest(y[y_finite], X[y_finite, ], max_nodes, draws) # estimate model
   }else{
-    Trees <- RndForest(y[y_finite], X[y_finite, ], depth_range=depth_range, draws = draws) # estimate model
+    Trees <- RndForest(y[y_finite], X[y_finite, ], min_obs, max_nodes, draws = draws) # estimate model
   }
   
   cnames <- colnames(X)
@@ -124,7 +122,6 @@ reg_forest <- function(y, X, max_nodes = 31, depth_range = c(50,100), draws = 10
     fstsplt <- NULL
     allsplt <- NULL
   }
- 
   
   if(regression){
     fit <- FitField(X[seq(k), ], Trees) # in sample fit

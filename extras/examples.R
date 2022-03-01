@@ -13,45 +13,28 @@ SimData <- function(n = 100){
               y = y))
 }
 
-n <- 2000
-
+n <- 200
 # Run a single simulation
 sim <- SimData(n)
 X_train <- sim$X
 y_train <- sim$y
 X_train[1:100,1:10] <- NA
 # X_train[1:50, 2] <- NA
-
 sim <- SimData(n)
 X_fit <- sim$X
 y_true <- sim$y
+# fast_cut(X_train[,19], y_train)
+# bob <- bestsplit(X_train, y_train, seq(0,NROW(X_train)-1), 10)
+# out <- RegTree(y_train, X_train)
+# A <- Sys.time()
+# out <- RForest(y_train, X_train)
+# Sys.time() - A
+# fit <- fitfield(X_train, out)
+# sum((y_train-fit)^2)
 
-fast_cut(X_train[,19], y_train)
+out <- reg_forest(y_train, X_train)
 
-bob <- bestsplit(X_train, y_train, seq(0,NROW(X_train)-1), 10)
-
-out <- RegTree(y_train, X_train)
-
-
-A <- Sys.time()
-out <- RForest(y_train, X_train)
-Sys.time() - A
-
-fit <- fitfield(X_train, out)
-
-B <- Sys.time()
-out2 <- Rnd_Forest(y_train, X_train, c(500,1000))
-Sys.time() - B
-
-fit2 <- Std_Fit_Field(X_train, out2)
-
-ts.plot(cbind(fit, y_train), col = c("red", "blue"))
-
-sum((y_train-fit)^2)
-sum((y_train-fit2)^2)
-
-
-
+pretty_plot(cbind(out$fit, out$true_vals))
 
 # A <- Sys.time()
 # Trees <- rand_rand(X_train, c(50,100), 10000)

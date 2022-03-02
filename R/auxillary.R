@@ -94,6 +94,7 @@ reg_forest <- function(y, X, min_obs=5, max_nodes = "auto", draws = 1000,
                        orthogonal = FALSE){
   y <- c(y)
   X <- as.matrix(X)
+  if(length(y) != NROW(X)) stop("Length of 'y' and rows of 'X' to not agree")
   y_finite <- is.finite(y) # fit model on periods in which y is finite
   last_period <- max(which(y_finite)) + steps # the period we want to predict
   k <- min(NROW(X), last_period)
@@ -128,6 +129,8 @@ reg_forest <- function(y, X, min_obs=5, max_nodes = "auto", draws = 1000,
   }else{
     fit <- StdFitField(X[seq(k), ], Trees) # in sample fit
   }
+  
+  fit_out <- rep(NA, )
   
   out <- list(fit = fit, true_vals = y[seq(k)])
   if(return_trees) out$Trees <- Trees

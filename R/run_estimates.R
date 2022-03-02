@@ -1,21 +1,21 @@
 
-run_forecast <- function(tgt, dt, lib, regress = FALSE){
+run_forecast <- function(tgt, dt, lib, detrend = FALSE, regress = FALSE){
   if(!"series_name"%in%names(dt)) stop("Column 'series_name' is required")
   if(!"ref_date"%in%names(dt)) stop("Column 'ref_date' is required")
   if(!"value"%in%names(dt)) stop("Column 'value' is required")
   regress = as.logical(regress)
+  detrend = as.logical(detrend)
   MF <- process_MF(dt[series_name == tgt], dt[series_name != tgt], LHS_lags = 3, pub_date_name = NULL)
-  X <- process(MF, lib, detrend = TRUE, pub_date_name = NULL)
+  X <- process(MF, lib, detrend = detrend, pub_date_name = NULL)
   W <- dcast(X, ref_date ~ series_name, value.var = "value") # wide data
   tgt0 <- paste(tgt, "0")
-  setcolorder(W, c("ref_date", tgt0))
+  setcolorder(W, c("ref_date", tgt0)) # this should be the case anyhow
   
-  y <- unlist(W[ , tgt0, with = FALSE])
+  y <- W[[tgt0]] 
   dates <- W$ref_date
   setcolorder(W, c("ref_date", tgt0))
   W <- as.matrix(  W[ , -c(1,2), with = FALSE])
   
-  # W[abs(W) > 4] <- NA # W is scaled, so this drops outliers
   if(regress){
     idx <- abs(W) > 5 | is.na(W)
     W[idx] <- 5*sign(W[idx]) # W is scaled, so this drops outliers
@@ -25,18 +25,33 @@ run_forecast <- function(tgt, dt, lib, regress = FALSE){
   
   last_obs <- nrow(out$fit)
   raw_res <- data.table("ref_date" = dates[seq(last_obs)], "fit" = out$fit, "true" = out$true_vals)
-  # pretty_plot(tail(raw_res, 48))
+  # pretty_plot(tail(raw_res, 120))
   
-  df <- X[series_name == tgt0]
+  df <- merge(data.table("ref_date"=dates), X[series_name == tgt0], 
+              by = "ref_date", all.x = TRUE)
   
+  df[ , value := Diff(level_value)] # not standardized/scaled
   # undo processing
-  fit_1 <- df$standardize_scale[seq(last_obs)]*out$fit + df$standardize_center[seq(last_obs)] + df$low_frequency_trend[seq(last_obs)]
-  fit_level <-exp(shift(df$level_value, 1)[seq(last_obs)]+fit_1)
+  if(detrend){
+    fit_1 <- df$standardize_scale[seq(last_obs)]*out$fit + df$standardize_center[seq(last_obs)] + df$low_frequency_trend[seq(last_obs)]
+  }else{
+    fit_1 <- df$standardize_scale[seq(last_obs)]*out$fit + df$standardize_center[seq(last_obs)] 
+  }
+  
+  if(lib[series_name == tgt]$take_diffs){
+    fit_level <-shift(df$level_value, 1)[seq(last_obs)]+fit_1
+  }else{
+    fit_level <- fit_1
+  }
+  if(lib[series_name == tgt]$take_logs){
+    fit_level <- exp(fit_level)
+    df[ , level_value := exp(level_value)]
+  }
   
   res <- data.table("series_name" = tgt, "ref_date" = dates[seq(last_obs)], "as_of" = Sys.Date(), "fit" = c(fit_1),  
-                    "level_fit" = c(fit_level), "value" = Diff(df$level_value[seq(last_obs)]), "level_value" = df$level_value[seq(last_obs)])
+                    "level_fit" = c(fit_level), "value" = df$value[seq(last_obs)], "level_value" = df$level_value[seq(last_obs)])
   
-  # pretty_plot(res[ , .(ref_date, fit, true_value)])
+  # pretty_plot(tail(res[ , .(ref_date, level_fit, level_value)], 48))
   
   out <- list("dt" = res,
               "raw" = out)

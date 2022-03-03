@@ -5,7 +5,7 @@ run_forecast <- function(tgt, dt, lib, detrend = FALSE, regress = FALSE){
   if(!"value"%in%names(dt)) stop("Column 'value' is required")
   regress = as.logical(regress)
   detrend = as.logical(detrend)
-  MF <- process_MF(dt[series_name == tgt], dt[series_name != tgt], LHS_lags = 3, pub_date_name = NULL)
+  MF <- process_MF(LHS = dt[series_name == tgt], RHS = dt[series_name != tgt], LHS_lags = 3, pub_date_name = NULL)
   X <- process(MF, lib, detrend = detrend, pub_date_name = NULL)
   W <- dcast(X, ref_date ~ series_name, value.var = "value") # wide data
   tgt0 <- paste(tgt, "0")
@@ -29,32 +29,55 @@ run_forecast <- function(tgt, dt, lib, detrend = FALSE, regress = FALSE){
   
   df <- merge(data.table("ref_date"=dates), X[series_name == tgt0], 
               by = "ref_date", all.x = TRUE)
-  
   df[ , value := Diff(level_value)] # not standardized/scaled
+  fit <- out$out_of_sample
+  upper_bound <- fit + sqrt(out$mse)
+  lower_bound <- fit - sqrt(out$mse)
+  
   # undo processing
   if(detrend){
-    fit_1 <- df$standardize_scale[seq(last_obs)]*out$fit + df$standardize_center[seq(last_obs)] + df$low_frequency_trend[seq(last_obs)]
+    fit <- df$standardize_scale[seq(last_obs)]*fit + df$standardize_center[seq(last_obs)] + df$low_frequency_trend[seq(last_obs)]
+    upper_bound <- df$standardize_scale[seq(last_obs)]*upper_bound + df$standardize_center[seq(last_obs)] + df$low_frequency_trend[seq(last_obs)]
+    lower_bound <- df$standardize_scale[seq(last_obs)]*lower_bound + df$standardize_center[seq(last_obs)] + df$low_frequency_trend[seq(last_obs)]
   }else{
-    fit_1 <- df$standardize_scale[seq(last_obs)]*out$fit + df$standardize_center[seq(last_obs)] 
+    fit <- df$standardize_scale[seq(last_obs)]*fit + df$standardize_center[seq(last_obs)] 
+    upper_bound <- df$standardize_scale[seq(last_obs)]*upper_bound + df$standardize_center[seq(last_obs)]
+    lower_bound <- df$standardize_scale[seq(last_obs)]*lower_bound + df$standardize_center[seq(last_obs)]
   }
   
   if(lib[series_name == tgt]$take_diffs){
-    fit_level <-shift(df$level_value, 1)[seq(last_obs)]+fit_1
+    fit_level <-shift(df$level_value, 1)[seq(last_obs)]+fit
+    upper_bound_level <-shift(df$level_value, 1)[seq(last_obs)]+upper_bound
+    lower_bound_level <-shift(df$level_value, 1)[seq(last_obs)]+lower_bound
   }else{
-    fit_level <- fit_1
+    fit_level <- fit
+    upper_bound_level <- upper_bound
+    lower_bound_level <- lower_bound
   }
   if(lib[series_name == tgt]$take_logs){
     fit_level <- exp(fit_level)
+    upper_bound_level <- exp(upper_bound_level)
+    lower_bound_level <- exp(lower_bound_level)
     df[ , level_value := exp(level_value)]
   }
   
-  res <- data.table("series_name" = tgt, "ref_date" = dates[seq(last_obs)], "as_of" = Sys.Date(), "fit" = c(fit_1),  
-                    "level_fit" = c(fit_level), "value" = df$value[seq(last_obs)], "level_value" = df$level_value[seq(last_obs)])
+  current_time <- Sys.time()
+  attr(current_time, "tzone") <- "GMT"
+  res <- data.table("series_name" = tgt, "ref_date" = dates[seq(last_obs)], 
+                    "as_of" = current_time, "fit" = c(fit), 
+                    "upper_bound" = upper_bound, "lower_bound" = lower_bound, 
+                    "level_fit" = c(fit_level), 
+                    "upper_bound_level" = upper_bound_level,
+                    "lower_bound_level" = lower_bound_level,
+                    "value" = df$value[seq(last_obs)], 
+                    "level_value" = df$level_value[seq(last_obs)])
+  
   
   # pretty_plot(tail(res[ , .(ref_date, level_fit, level_value)], 48))
   
   out <- list("dt" = res,
-              "raw" = out)
+              "raw" = out,
+              "X" = X)
   return(out)
 }
 

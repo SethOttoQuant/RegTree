@@ -74,7 +74,8 @@ arma::field<arma::vec> bestsplit(arma::mat X, // predictors
                        arma::uvec ind, // index of observations in original data
                        arma::uword n){ // number of candidates to select
   // select candidates for splitting
-  uvec candidates = select_rnd(X.n_cols, n); // randomly selected candidates
+  field<uvec> cnd = select_rnd(X.n_cols, n);
+  uvec candidates = cnd(0); // randomly selected candidates
   mat splits(4,n); 
   vec tmp;
   for(uword j=0; j<n; j++){
@@ -94,10 +95,9 @@ arma::field<arma::vec> bestsplit(arma::mat X, // predictors
 // [[Rcpp::export]]
 arma::mat regtree(arma::vec y, // response (no missing obs)
           arma::mat X, // predictors (missing obs OK)
+          arma::uvec to_keep,
           arma::uword min_obs = 5, 
           arma::uword max_nodes= 1000){
-  double T = X.n_rows;
-  uvec to_keep = select_rnd(T, ceil(0.632*T));
   X = X.rows(to_keep); // this shuffles X and y but it shouldn't matter
   y = y(to_keep);
   double xnc = X.n_cols;
@@ -146,19 +146,7 @@ arma::mat regtree(arma::vec y, // response (no missing obs)
   }
   return(Tree.rows(0,i));
 }
-// Draw 'draws' number of trees
-// [[Rcpp::export]]
-arma::field<arma::mat> rforest(arma::vec y, // response (no missing obs)
-                                  arma::mat X, // predictors (missing obs OK)
-                                  arma::uword min_obs = 5,
-                                  arma::uword max_nodes = 1000,
-                                  arma::uword draws = 1000){
-  field<mat> Trees(draws);
-  for(uword j = 0; j<draws; j++){
-    Trees(j) = regtree(y, X, min_obs, max_nodes);
-  }
-  return(Trees);
-}
+
 // Fit a single observation using the estimated tree
 // [[Rcpp::export]]
 double fitvec(arma::vec x,
@@ -200,5 +188,31 @@ arma::vec fitfield(arma::mat X,
   }
   vec mu = mean(Mu,1); // take average response
   return(mu);
+}
+
+// Draw 'draws' number of trees
+// [[Rcpp::export]]
+Rcpp::List rforest(arma::vec y, // response (no missing obs)
+                   arma::mat X, // predictors (missing obs OK)
+                   arma::uword min_obs = 5,
+                   arma::uword max_nodes = 1000,
+                   arma::uword draws = 1000){
+  field<mat> Trees(draws);
+  double T = X.n_rows;
+  vec oob(T); mat Tree;
+  field<uvec> to_keep;
+  mat OOB(T, draws);
+  for(uword j = 0; j<draws; j++){
+    to_keep = select_rnd(T, ceil(0.632*T));
+    Tree = regtree(y, X, to_keep(0), min_obs, max_nodes);
+    oob.fill(datum::nan);
+    oob(to_keep(1)) = fitmat(trans(X.rows(to_keep(1))), Tree);
+    OOB.col(j) = oob;
+    Trees(j) = Tree;
+  }
+  Rcpp::List rtrn;
+  rtrn["Trees"] = Trees;
+  rtrn["OOB"] = OOB; // out of bag fit
+  return(rtrn);
 }
 

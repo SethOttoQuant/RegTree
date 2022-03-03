@@ -66,7 +66,8 @@ arma::field<arma::vec> best_split(arma::mat X, // predictors
                        arma::uvec ind, // index of observations in original data
                        arma::uword n){ // number of candidates to select
   // select candidates for splitting
-  uvec candidates = select_rnd(X.n_cols, n); // randomly selected candidates
+  field<uvec> cnd = select_rnd(X.n_cols, n);
+  uvec candidates = cnd(0); // randomly selected candidates
   mat splits(8,n); // results matrix (mean <, mean >, vol <, vol >, vol NA, cut)
   field<vec> tmp;
   for(uword j=0; j<n; j++){
@@ -136,7 +137,8 @@ arma::mat Reg_Tree(arma::vec y, // response (no missing obs)
   // bag_rows = std::min(1.0,std::abs(bag_rows)); // safety first
   // bag_rows = std::min(1.0,std::abs(bag_cols)); // safety first
   double T = X.n_rows;
-  uvec to_keep = select_rnd(T, ceil(0.632*T));
+  field<uvec> tk = select_rnd(T, ceil(0.632*T));
+  uvec to_keep = tk(0);
   X = X.rows(to_keep); // this shuffles X and y but it shouldn't matter
   y = y(to_keep);
   double xnc = X.n_cols;

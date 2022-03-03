@@ -5,11 +5,14 @@
 using namespace arma;
 
 // [[Rcpp::export]]
-arma::uvec select_rnd(arma::uword m, // number of elements
-                      arma::uword n){ // number to select
+arma::field<arma::uvec> select_rnd(arma::uword m, // number of elements
+                                   arma::uword n){ // number to select
   uvec idx = regspace<uvec>(0,m-1);
-  uvec out = shuffle(idx);
-  return(out.head(n));
+  uvec to_keep = shuffle(idx);
+  field<uvec> out(2);
+  out(0) = to_keep.head(n);
+  out(1) = to_keep.tail(m-n);
+  return(out);
 }
 
 // [[Rcpp::export]]

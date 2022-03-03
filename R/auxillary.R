@@ -98,6 +98,9 @@ reg_forest <- function(y, X, min_obs=5, max_nodes = "auto", draws = 1000,
   y_finite <- is.finite(y) # fit model on periods in which y is finite
   last_period <- max(which(y_finite)) + steps # the period we want to predict
   k <- min(NROW(X), last_period)
+  y <- y[seq(k)]
+  X <- X[seq(k),]
+  y_finite <- y_finite[seq(k)]
   X <- X[ ,is.finite(X[k, ])] # if X not observed in the period we wish to predict, drop it
   if(orthogonal){
     X <- fake_pca(X)
@@ -112,7 +115,10 @@ reg_forest <- function(y, X, min_obs=5, max_nodes = "auto", draws = 1000,
   if(regression){
     Trees <- RegForest(y[y_finite], X[y_finite, ], max_nodes, draws) # estimate model
   }else{
-    Trees <- RndForest(y[y_finite], X[y_finite, ], min_obs, max_nodes, draws = draws) # estimate model
+    rf_out <- RndForest(y[y_finite], X[y_finite, ], min_obs, max_nodes, draws = draws) # estimate model
+    Trees <- rf_out$Trees
+    oob <- rowMeans(rf_out$OOB, na.rm = TRUE)
+    mse <- mean((y[y_finite]-oob)^2)
   }
   
   cnames <- colnames(X)
@@ -125,15 +131,20 @@ reg_forest <- function(y, X, min_obs=5, max_nodes = "auto", draws = 1000,
   }
   
   if(regression){
-    fit <- FitField(X[seq(k), ], Trees) # in sample fit
+    fit <- FitField(X, Trees) # in sample fit
   }else{
-    fit <- StdFitField(X[seq(k), ], Trees) # in sample fit
+    fit <- StdFitField(X, Trees) # in sample fit
   }
-  
-  fit_out <- rep(NA, )
-  
-  out <- list(fit = fit, true_vals = y[seq(k)])
+
+  out <- list(fit = fit, true_vals = y)
   if(return_trees) out$Trees <- Trees
+  if(!regression){
+    out_of_sample <- rep(NA, k)
+    out_of_sample[y_finite] <- oob
+    out_of_sample[!y_finite] <- fit[!y_finite]
+    out$out_of_sample <- out_of_sample
+    out$mse <- mse
+  }
   out$first_split <- fstsplt
   out$all_splits <- allsplt
   out$X_names <- cnames

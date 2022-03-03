@@ -32,9 +32,13 @@ y_true <- sim$y
 # fit <- fitfield(X_train, out)
 # sum((y_train-fit)^2)
 
-out <- reg_forest(y_train, X_train)
+out <- rforest(y_train, X_train)
+oob <- rowMeans(out$OOB, na.rm=TRUE)
 
-pretty_plot(cbind(out$fit, out$true_vals))
+pretty_plot(cbind(y_train, oob))
+
+out <- reg_forest(y_train, X_train)
+pretty_plot(cbind(out$true_vals, out$out_of_sample))
 
 # A <- Sys.time()
 # Trees <- rand_rand(X_train, c(50,100), 10000)

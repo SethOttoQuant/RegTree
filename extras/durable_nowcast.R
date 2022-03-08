@@ -52,10 +52,10 @@ frednew <- c("TOTBKCR", "RELACBW027SBOG", "CLSACBW027SBOG", "FRGSHPUSM649NCIS",
 # all comercial debt, real estate loans, consumer loans, Cass freight shipments (NSA), Cass freigh expenditures (NSA) 
 
 # Additional data from Trading Economics
-new_data <- lapply(TEnew, FUN = TE_historical_data, country = "United States", initDate = "1990-01-01") 
-dat <- rbindlist(new_data)
-dat[ , country := NULL]
-setcolorder(dat, names(DT))
+# new_data <- lapply(TEnew, FUN = TE_historical_data, country = "United States", initDate = "1990-01-01") 
+# dat <- rbindlist(new_data)
+# dat[ , country := NULL]
+# setcolorder(dat, names(DT))
 # Additional data from FRED
 frd <- lapply(frednew, FUN = Get_FRED_Data, observation_start = "1990-01-01")
 frd <- rbindlist(frd)
@@ -76,18 +76,14 @@ frd[series_name=="R4232IM163SCEN", series_name := "wholesale furniture home good
 
 setcolorder(frd, names(DT))
 
-dt <- rbind(DT, dat)
-dt <- rbind(dt,frd)
-
-libdat <- auto_library(dat) # fine
-# tmp <- dcast(dat, ref_date ~ series_name, value.var = "value")
-# pretty_plot(tmp, legend_pos = "topleft")
-
+dt <- rbind(DT,frd)
+# dt <- rbind(dt, dat)
+# libdat <- auto_library(dat) # fine
 libfrd <- auto_library(frd) # Fine
 # clib <- data.table(series_name = unique(CM$series_name), frequency = "daily",
 #                    needs_SA = FALSE,  take_logs = TRUE, take_diffs = TRUE) # lib for commodity prices
 
-lib <- rbind(lib, libdat)
+# lib <- rbind(lib, libdat)
 lib <- rbind(lib, libfrd)
 # lib <- rbind(lib, clib)
 
@@ -144,21 +140,21 @@ selected_quarterly <- c(selected_pced, "wholesale inventories", "building permit
 
 # ----- Nowcast durable good consumption -------------------------
 print("Estimating PCE Durable")
-pced <- run_forecast(tgt="personal consumption expenditures durable goods", rbind(dt[series_name%in%selected_pced], rev), lib, regress = TRUE)
+pced <- run_forecast(tgt="personal consumption expenditures durable goods", rbind(dt[series_name%in%selected_pced], rev), lib, regress = FALSE)
 
 # ------- Furniture and home goods ---------------------------------
 print("Estimating PCE furniture and home goods")
-pcefhg <- run_forecast(tgt="pce furniture and home goods", rbind(dt[series_name%in%selected_quarterly], rev), lib, regress = TRUE)
+pcefhg <- run_forecast(tgt="pce furniture and home goods", rbind(dt[series_name%in%selected_quarterly], rev), lib, regress = FALSE)
 # pretty_plot(pcefhg$dt[ , .(ref_date, fit, value)])
 
 # ------ PCE Motor Vehicles -------------------------------------------
 print("Estimating PCE motor vehicles")
-pcemv <- run_forecast(tgt="pce motor vehicles", rbind(dt[series_name%in%selected_quarterly], rev), lib, regress = TRUE)
+pcemv <- run_forecast(tgt="pce motor vehicles", rbind(dt[series_name%in%selected_quarterly], rev), lib, regress = FALSE)
 # pretty_plot(pcemv$dt[ , .(ref_date, fit, value)])
 
 print("Writting output")
 out <- rbind(tail(pced$dt, 1), tail(pcefhg$dt,1), tail(pcemv$dt,1))
-write.csv(out, "/tmp/pred.csv", row.names = FALSE)
+write.csv(out[ , .(series_name, ref_date, as_of, fit, level_fit, value, level_value)], "/tmp/pred.csv", row.names = FALSE)
 
 # And other fun stuff it's probably worth keeping track of:
 

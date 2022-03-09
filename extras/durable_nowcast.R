@@ -56,6 +56,7 @@ frednew <- c("TOTBKCR", "RELACBW027SBOG", "CLSACBW027SBOG", "FRGSHPUSM649NCIS",
 # dat <- rbindlist(new_data)
 # dat[ , country := NULL]
 # setcolorder(dat, names(DT))
+
 # Additional data from FRED
 frd <- lapply(frednew, FUN = Get_FRED_Data, observation_start = "1990-01-01")
 frd <- rbindlist(frd)

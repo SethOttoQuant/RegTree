@@ -130,15 +130,14 @@ arma::uvec field_obs(arma::field<vec> E, arma::uword n){
 // [[Rcpp::export]]
 arma::mat Reg_Tree(arma::vec y, // response (no missing obs)
           arma::mat X, // predictors (missing obs OK)
+          arma::uvec to_keep,
           arma::uword max_nodes = 31){
           // double bag_rows = 0.632,
           // double bag_cols = 0.333){ 
   // Bag each tree by randomly selecting observations
   // bag_rows = std::min(1.0,std::abs(bag_rows)); // safety first
   // bag_rows = std::min(1.0,std::abs(bag_cols)); // safety first
-  double T = X.n_rows;
-  field<uvec> tk = select_rnd(T, ceil(0.632*T));
-  uvec to_keep = tk(0);
+  // double T = X.n_rows;
   X = X.rows(to_keep); // this shuffles X and y but it shouldn't matter
   y = y(to_keep);
   double xnc = X.n_cols;
@@ -210,9 +209,9 @@ arma::mat Reg_Tree(arma::vec y, // response (no missing obs)
 double FitVec(arma::vec x,
               arma::mat Tree,
               arma::uword maxit = 1000){
-  double j = 0; double it=0; double y=0; double i = 0;
+  double j = 0; double it=0; double y=0; double i = Tree(0,0);
   while(Tree(j,8) != 1 && it<maxit){
-    if(!std::isfinite(x(Tree(j,0)))){
+    if(!std::isfinite(x(i))){
       return(y);
     }else{
       y += Tree(j,5) + Tree(j,6)*x(i); 
@@ -240,19 +239,6 @@ arma::vec FitMat(arma::mat X,
   return(Mu);
 }
 
-// Draw 'draws' number of trees
-// [[Rcpp::export]]
-arma::field<arma::mat> Reg_Forest(arma::vec y, // response (no missing obs)
-                           arma::mat X, // predictors (missing obs OK)
-                           arma::uword max_nodes = 31, // try 15 too
-                           arma::uword draws = 1000){
-  field<mat> Trees(draws);
-  for(uword j = 0; j<draws; j++){
-    Trees(j) = Reg_Tree(y, X, max_nodes);
-  }
-  return(Trees);
-}
-
 // Fit output from RegForest
 // [[Rcpp::export]]
 arma::vec Fit_Field(arma::mat X,
@@ -266,6 +252,27 @@ arma::vec Fit_Field(arma::mat X,
   return(mu);
 }
 
-
-
-
+// Draw 'draws' number of trees
+// [[Rcpp::export]]
+Rcpp::List Reg_Forest(arma::vec y, // response (no missing obs)
+                                  arma::mat X, // predictors (missing obs OK)
+                                  arma::uword max_nodes = 31, // try 15 too
+                                  arma::uword draws = 1000){
+  field<mat> Trees(draws);
+  double T = X.n_rows;
+  vec oob(T); mat Tree;
+  field<uvec> to_keep;
+  mat OOB(T, draws);
+  for(uword j = 0; j<draws; j++){
+    to_keep = select_rnd(T, ceil(0.632*T));
+    Tree = Reg_Tree(y, X, to_keep(0), max_nodes);
+    oob.fill(datum::nan);
+    oob(to_keep(1)) = FitMat(trans(X.rows(to_keep(1))), Tree);
+    OOB.col(j) = oob;
+    Trees(j) = Tree;
+  }
+  Rcpp::List rtrn;
+  rtrn["Trees"] = Trees;
+  rtrn["OOB"] = OOB; // out of bag fit
+  return(rtrn);
+}

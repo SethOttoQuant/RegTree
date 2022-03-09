@@ -113,13 +113,14 @@ reg_forest <- function(y, X, min_obs=5, max_nodes = "auto", draws = 1000,
     }
   }
   if(regression){
-    Trees <- RegForest(y[y_finite], X[y_finite, ], max_nodes, draws) # estimate model
+    rf_out <- RegForest(y[y_finite], X[y_finite, ], max_nodes, draws) # estimate model
   }else{
     rf_out <- RndForest(y[y_finite], X[y_finite, ], min_obs, max_nodes, draws = draws) # estimate model
-    Trees <- rf_out$Trees
-    oob <- rowMeans(rf_out$OOB, na.rm = TRUE)
-    mse <- mean((y[y_finite]-oob)^2)
   }
+  
+  Trees <- rf_out$Trees
+  oob <- rowMeans(rf_out$OOB, na.rm = TRUE)
+  mse <- mean((y[y_finite]-oob)^2)
   
   cnames <- colnames(X)
   if(!orthogonal){
@@ -138,13 +139,11 @@ reg_forest <- function(y, X, min_obs=5, max_nodes = "auto", draws = 1000,
 
   out <- list(fit = fit, true_vals = y)
   if(return_trees) out$Trees <- Trees
-  if(!regression){
-    out_of_sample <- rep(NA, k)
-    out_of_sample[y_finite] <- oob
-    out_of_sample[!y_finite] <- fit[!y_finite]
-    out$out_of_sample <- out_of_sample
-    out$mse <- mse
-  }
+  out_of_sample <- rep(NA, k)
+  out_of_sample[y_finite] <- oob
+  out_of_sample[!y_finite] <- fit[!y_finite]
+  out$out_of_sample <- out_of_sample
+  out$mse <- mse
   out$first_split <- fstsplt
   out$all_splits <- allsplt
   out$X_names <- cnames

@@ -32,10 +32,16 @@ y_true <- sim$y
 # fit <- fitfield(X_train, out)
 # sum((y_train-fit)^2)
 
-out <- rforest(y_train, X_train)
-oob <- rowMeans(out$OOB, na.rm=TRUE)
+# out <- Reg_Forest(y_train, X_train)
 
-pretty_plot(cbind(y_train, oob))
+to_keep = select_rnd(n, 120);
+Tree = Reg_Tree(y_train, X_train, to_keep[[1]], 31)
+
+FitVec(X_train[20,],Tree)
+
+out <- reg_forest(y_train, X_train, regression = TRUE)
+
+pretty_plot(cbind(y_train, out$out_of_sample))
 
 out <- reg_forest(y_train, X_train)
 pretty_plot(cbind(out$true_vals, out$out_of_sample))
@@ -77,11 +83,12 @@ run_sim <- function(n){
   y_true <- sim$y
   
   # In Sample
-  #Trees <- RegForestM(y_train,X_train, depth_range = c(50,100)) # this uses regression at each node
-  Trees <- Rnd_Forest(y_train,X_train, depth_range = c(50,100)) # this uses mean(y) at each node
+  out_std <- RndForest(y_train,X_train)
+  out_reg <- RegForest(y_train,X_train) # this uses mean(y) at each node
   
   # Out of Sample
-  fit <- FitFieldM(X_fit,Trees) # for RegForest()
+  fit_reg <- FitField(X_fit,out_reg$Trees) # for RegForest()
+  fit_std <- StdFitField(X_fit,out_std$Trees)
   # fit2 <- StdFitField(X_fit,Trees2) # for RndForest()
   # ts.plot(cbind(fit,y_true), col = c("red", "blue"))
   
@@ -100,37 +107,25 @@ run_sim <- function(n){
   rf2 <- ranger(y_train ~ ., data = df)
   ranger_fit <- predict(rf2, data = data.frame(X_fit))
   
-  res <- data.frame(fit,rf_fit,ranger_fit$predictions,y_true)
-  names(res) <- c("new algo", "randomForest", "ranger", "true values")
+  res <- data.frame(fit_reg, fit_std, rf_fit, ranger_fit$predictions, y_true)
+  names(res) <- c("regression", "standard", "randomForest", "ranger", "true values")
   return(res)
 }
 
 A <- Sys.time()
-Out <- lapply(rep(200, 20), FUN = run_sim) # 200 observations, 100 simulations (it's slow)
+Out <- lapply(rep(300, 20), FUN = run_sim) # 200 observations, 100 simulations (it's slow)
 B <- Sys.time()
 B - A
 
-NewAlgo <- do.call("cbind", lapply(Out, FUN = get_from_list, what = "new algo"))
+Reg <- do.call("cbind", lapply(Out, FUN = get_from_list, what = "regression"))
+Std <- do.call("cbind", lapply(Out, FUN = get_from_list, what = "standard"))
 randForest <- do.call("cbind", lapply(Out, FUN = get_from_list, what = "randomForest"))
 rang <- do.call("cbind", lapply(Out, FUN = get_from_list, what = "ranger"))
 TrueVals <- do.call("cbind", lapply(Out, FUN = get_from_list, what = "true values"))
 
-mean((NewAlgo - TrueVals)^2, na.rm = TRUE)
+mean((Reg - TrueVals)^2, na.rm = TRUE)
+mean((Std - TrueVals)^2, na.rm = TRUE)
 mean((randForest - TrueVals)^2)
 mean((rang - TrueVals)^2)
-
-mean((NewAlgo - randForest)^2)
-mean((NewAlgo - rang)^2)
-mean((randForest - rang)^2)
-
-
-
-
-
-
-# x = NULL, X, lwd = 2, xlab = "Date", ylab = "", legend_pos = "bottomleft", title = ""
-# pretty_plot(X = res, xlab = "Time", ylab = "Simulated Data", title = "New Algorithm against Existing Libraries")
-
-# dev.print(png, filename = "C:/Users/seton/Dropbox/Quantagon/inflation_nowcasting/algo_test.png", width = 1400, height = 900, res = 175)
 
 

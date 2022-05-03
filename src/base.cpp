@@ -131,7 +131,8 @@ arma::uvec field_obs(arma::field<vec> E, arma::uword n){
 arma::mat Reg_Tree(arma::vec y, // response (no missing obs)
           arma::mat X, // predictors (missing obs OK)
           arma::uvec to_keep,
-          arma::uword max_nodes = 31){
+          arma::uword min_obs = 15,
+          arma::uword max_nodes = 40){
           // double bag_rows = 0.632,
           // double bag_cols = 0.333){ 
   // Bag each tree by randomly selecting observations
@@ -142,7 +143,7 @@ arma::mat Reg_Tree(arma::vec y, // response (no missing obs)
   y = y(to_keep);
   double xnc = X.n_cols;
   uword n = ceil(xnc/3); // number of candidates to use at each split
-  mat Tree(max_nodes, 9, fill::zeros);
+  mat Tree(max_nodes, 10, fill::zeros);
   Tree(0,5) = mean(y); // unconditional mean
   Tree(0,6) = 0; // beta is zero for the original node
   Tree(0,7) = sum(square(y-Tree(0,5))); // unconditional var
@@ -164,7 +165,7 @@ arma::mat Reg_Tree(arma::vec y, // response (no missing obs)
     Tree(j,1) = par(8); // cut value
     Tree(j,2) = i+1; // if <, go to node i+1
     Tree(j,3) = i+2; // if >, go to node i+2
-    Tree(j,8) = 0; // no longer terminal node
+    Tree(j,9) = 0; // no longer terminal node
     Tree(i+1,4) = j; // node coming from
     Tree(i+2,4) = j; // node coming from
     Tree(i+1,5) = par(1); // a if <
@@ -173,16 +174,17 @@ arma::mat Reg_Tree(arma::vec y, // response (no missing obs)
     Tree(i+2,6) = par(4); // b if >
     Tree(i+1,7) = par(5); // sig if <
     Tree(i+2,7) = par(6); // sig if >
-    Tree(i+1,8) = 1; // terminal node (leaf)
-    Tree(i+2,8) = 1; // terminal node (leaf)
+    Tree(i+1,8) = tmp(1).n_elem; // n_obs <=
+    Tree(i+2,8) = tmp(2).n_elem; // n_obs >
+    Tree(i+1,9) = 1; // terminal node (leaf)
+    Tree(i+2,9) = 1; // terminal node (leaf)
     E(i+1) = tmp(1); // residuals <=
     E(i+2) = tmp(2); // residuals >
     I(i+1) = conv_to<uvec>::from(tmp(3)); // indexes <=
     I(i+2) = conv_to<uvec>::from(tmp(4)); // indexes >
     // find the leaf with the highest variance for the next iteration
-    fobs = field_obs(E, i+3);
     tmp_tree = Tree.rows(0,i+2);
-    leaf_idx = find(tmp_tree.col(8) == 1 && fobs > 9); // index of terminal nodes in Tree matrix with enough obs
+    leaf_idx = find(tmp_tree.col(9) == 1 && tmp_tree.col(8) > min_obs); // index of terminal nodes in Tree matrix with enough obs
     // Find the leaf with the maximum variance
     leaves = Tree.rows(leaf_idx); // terminal nodes (i.e. leaves). 
     // Rcpp::Rcout << Tree.rows(0,10) << endl;
@@ -206,73 +208,110 @@ arma::mat Reg_Tree(arma::vec y, // response (no missing obs)
 
 // Fit a single observation using the estimated tree
 // [[Rcpp::export]]
-double FitVec(arma::vec x,
+arma::field<arma::vec> FitVec(arma::vec x,
               arma::mat Tree,
               arma::uword maxit = 1000){
-  double j = 0; double it=0; double y=0; double i = Tree(0,0);
-  while(Tree(j,8) != 1 && it<maxit){
+  uword j = 0; double it=0; double y=0; 
+  uword i = 0; // arbitrary initial value
+  field<vec> out(2); // out(0) is value of y, out(1) is feature contributions
+  vec fc(x.n_elem, fill::zeros); // vector of feature contributions
+  double c; // change in y at current node
+  while(Tree(j,9) != 1 && it<maxit){
     if(!std::isfinite(x(i))){
-      return(y);
+      out[0] = y;
+      out[1] = fc;
+      return(out);
     }else{
-      y += Tree(j,5) + Tree(j,6)*x(i); 
-      i = Tree(j,0);
-      if(x(Tree(j,0))>Tree(j,1)){
-        j = Tree(j,3);
+      c = Tree(j,5) + Tree(j,6)*x(i);
+      if(it>0){
+        fc(i) += c; // do not count unconditional mean
+      }
+      y += c;  
+      i = Tree(j,0); // next cut variable index
+      if(x(i)>Tree(j,1)){
+        j = Tree(j,3); // next row of Tree
       }else{
         j = Tree(j,2);
       }
       it++;
     }
   }
-  y += Tree(j,5) + Tree(j,6)*x(i); // terminal node (leaf)
-  return(y);
+  c = Tree(j,5) + Tree(j,6)*x(i); // terminal node (leaf)
+  fc(i) += c;
+  y += c; 
+  out[0] = y;
+  out[1] = fc;
+  return(out);
 }
 
 // Fit a vector of observations using the estimated tree
 // [[Rcpp::export]]
-arma::vec FitMat(arma::mat X,
-                 arma::mat Tree){
+arma::field<arma::mat> FitMat(arma::mat X,
+                              arma::mat Tree){
+  field<mat> out(2);
+  field<vec> tmp;
   vec Mu(X.n_cols);
+  mat FC(X.n_rows, X.n_cols, fill::zeros);
   for(uword j=0; j<X.n_cols; j++){
-    Mu(j) = FitVec(X.col(j), Tree);
+    tmp = FitVec(X.col(j), Tree);
+    Mu(j) = as_scalar(tmp[0]); // estimate of y at that observation
+    FC.col(j) = tmp[1]; // feature contribution at each point in time
   }
-  return(Mu);
+  out(0) = Mu;
+  out(1) = FC;
+  return(out);
 }
 
 // Fit output from RegForest
 // [[Rcpp::export]]
-arma::vec Fit_Field(arma::mat X,
-                   arma::field<arma::mat> Trees){
-  mat Mu(X.n_rows, Trees.n_elem);
+arma::field<arma::mat> Fit_Field(arma::mat X,
+                       arma::field<arma::mat> Trees){
+  uword k = Trees.n_elem;
+  vec Mu(X.n_rows, fill::zeros); // mean (ie prediction)
+  mat FC(X.n_cols, X.n_rows, fill::zeros); // feature contribution
+  field<mat> tmp;
+  field<mat> out(2);
   X = trans(X); //transpose for FitMat
-  for(uword j=0; j<Trees.n_elem; j++){
-    Mu.col(j) = FitMat(X, Trees(j));
+  for(uword j=0; j<k; j++){
+    tmp = FitMat(X, Trees(j));
+    Mu += tmp(0);
+    FC += tmp(1);
   }
-  vec mu = mean(Mu,1); // take average response
-  return(mu);
+  out(0) = Mu/k; // take average response (div by num trees)
+  out(1) = trans(FC)/k;
+  return(out);
 }
 
 // Draw 'draws' number of trees
 // [[Rcpp::export]]
 Rcpp::List Reg_Forest(arma::vec y, // response (no missing obs)
-                                  arma::mat X, // predictors (missing obs OK)
-                                  arma::uword max_nodes = 31, // try 15 too
-                                  arma::uword draws = 1000){
+                      arma::mat X, // predictors (missing obs OK)
+                      arma::uword min_obs = 15,
+                      arma::uword max_nodes = 31, // try 15 too
+                      arma::uword draws = 1000){
   field<mat> Trees(draws);
   double T = X.n_rows;
-  vec oob(T); mat Tree;
+  vec oob(T); mat Tree;  // out of bag estimates
+  mat fc(T,X.n_cols);  // out of bag feature contributions
   field<uvec> to_keep;
   mat OOB(T, draws);
+  cube FC(T, X.n_cols, draws);
+  field<mat> tmp;
   for(uword j = 0; j<draws; j++){
     to_keep = select_rnd(T, ceil(0.632*T));
-    Tree = Reg_Tree(y, X, to_keep(0), max_nodes);
+    Tree = Reg_Tree(y, X, to_keep(0), min_obs, max_nodes); // to_keep(0) is in bag
     oob.fill(datum::nan);
-    oob(to_keep(1)) = FitMat(trans(X.rows(to_keep(1))), Tree);
+    fc.fill(datum::nan);
+    tmp = FitMat(trans(X.rows(to_keep(1))), Tree); // to_keep(1) is out of bag
+    oob(to_keep(1)) = tmp(0);
+    fc.rows(to_keep(1)) = trans(tmp(1));
     OOB.col(j) = oob;
+    FC.slice(j) = fc;
     Trees(j) = Tree;
   }
   Rcpp::List rtrn;
   rtrn["Trees"] = Trees;
   rtrn["OOB"] = OOB; // out of bag fit
+  rtrn["FC"] = FC; // out of bag feature contribution
   return(rtrn);
 }

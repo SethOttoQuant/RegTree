@@ -2,6 +2,8 @@ library(RegTree)
 library(randomForest)
 library(ranger)
 library(dateutils)
+library(devtools)
+load_all()
 
 # ------ Simulate Data --------------
 SimData <- function(n = 100){
@@ -32,10 +34,63 @@ y_true <- sim$y
 # fit <- fitfield(X_train, out)
 # sum((y_train-fit)^2)
 
-# out <- Reg_Forest(y_train, X_train)
+to_keep <- select_rnd(n, 120);
+oout <- regtree(y_train, X_train, to_keep[[1]])
 
-to_keep = select_rnd(n, 120);
-Tree = Reg_Tree(y_train, X_train, to_keep[[1]], 31)
+jim <- fitvec(X_fit[1,], oout)
+carl <- jim[[2]]
+sum(carl) + oout[1,6]
+jim[[1]]
+
+
+
+jane <- fitmat(t(X_fit), oout)
+jen <- jane[[2]]
+
+colSums(jen) + oout[1,6]
+c(jane[[1]] )
+
+tst <- rforest(y_train, X_train)
+bob <- tst$FC[,,1]
+
+
+out <- Reg_Forest(y_train, X_train)
+FC <- out$FC
+
+FCm <- apply(FC, c(1,2), FUN = mean, na.rm=TRUE)
+out = FitMat(t(X_train), Tree)
+ft = out[[1]]
+fc = t(out[[2]])
+
+tmp <- FitField(X_fit, out$Trees)
+
+
+
+
+Tree = Reg_Tree(y_train, X_train, seq(0,199), 31)
+
+
+
+mean(y_train[to_keep[[1]]+1])
+
+
+
+rs = rowSums(fc)
+
+j = 1
+rs[j]
+ft[j]
+# tst = FitMat(X_fit, Tree)
+
+
+
+
+
+
+
+
+
+
 
 FitVec(X_train[20,],Tree)
 

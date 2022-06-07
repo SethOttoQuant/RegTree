@@ -18,7 +18,6 @@ run_forecast <- function(tgt, dt, lib, detrend = FALSE, regress = FALSE, as_of_d
   
   y <- W[[tgt0]] 
   dates <- W$ref_date
-  setcolorder(W, c("ref_date", tgt0))
   W <- as.matrix(  W[ , -c(1,2), with = FALSE])
   
   if(regress){
@@ -27,7 +26,7 @@ run_forecast <- function(tgt, dt, lib, detrend = FALSE, regress = FALSE, as_of_d
   } 
   
   out <- reg_forest(y, W, steps = 1, draws = 2000, regression = regress) # estimate model for one step ahead; pretty slow
-  
+
   last_obs <- nrow(out$fit)
   raw_res <- data.table("ref_date" = dates[seq(last_obs)], "fit" = out$fit, "true" = out$true_vals)
   # pretty_plot(tail(raw_res, 120))
@@ -39,6 +38,9 @@ run_forecast <- function(tgt, dt, lib, detrend = FALSE, regress = FALSE, as_of_d
   upper_bound <- fit + sqrt(out$mse)
   lower_bound <- fit - sqrt(out$mse)
   
+  # note that df$standarsize_scale should all be the same value, as with
+  # df$standardize_center. Different values only come up if we've estimated
+  # trends, which we typically don't do. 
   # undo processing
   if(detrend){
     fit <- df$standardize_scale[seq(last_obs)]*fit + df$standardize_center[seq(last_obs)] + df$low_frequency_trend[seq(last_obs)]
@@ -49,8 +51,13 @@ run_forecast <- function(tgt, dt, lib, detrend = FALSE, regress = FALSE, as_of_d
     upper_bound <- df$standardize_scale[seq(last_obs)]*upper_bound + df$standardize_center[seq(last_obs)]
     lower_bound <- df$standardize_scale[seq(last_obs)]*lower_bound + df$standardize_center[seq(last_obs)]
   }
+  # Undo scaling for feature contributions as well:
+  feature_contribution <- mean(df$standardize_scale, na.rm = TRUE)*out$oob_feature_contribution 
+  feature_contribution <- data.table("ref_date" = dates[seq(last_obs)], feature_contribution)
   
-  if(lib[series_name == tgt]$take_diffs){
+  # leave things log differenced (take diffs is either 1 or 0)
+  
+  if(lib[series_name == tgt]$take_diffs==10){
     fit_level <-shift(df$level_value, 1)[seq(last_obs)]+fit
     upper_bound_level <-shift(df$level_value, 1)[seq(last_obs)]+upper_bound
     lower_bound_level <-shift(df$level_value, 1)[seq(last_obs)]+lower_bound
@@ -59,7 +66,7 @@ run_forecast <- function(tgt, dt, lib, detrend = FALSE, regress = FALSE, as_of_d
     upper_bound_level <- upper_bound
     lower_bound_level <- lower_bound
   }
-  if(lib[series_name == tgt]$take_logs){
+  if(lib[series_name == tgt]$take_logs==10){
     fit_level <- exp(fit_level)
     upper_bound_level <- exp(upper_bound_level)
     lower_bound_level <- exp(lower_bound_level)
@@ -81,6 +88,8 @@ run_forecast <- function(tgt, dt, lib, detrend = FALSE, regress = FALSE, as_of_d
   # pretty_plot(tail(res[ , .(ref_date, level_fit, level_value)], 48))
   
   out <- list("dt" = res,
+              "feature_contribution" = feature_contribution,
+              "raw_results" = raw_res, 
               "raw" = out,
               "X" = X)
   return(out)

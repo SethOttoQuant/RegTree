@@ -24,6 +24,10 @@ sim <- SimData(n)
 X_fit <- sim$X
 y_true <- sim$y
 
+out <- select_rnd(10,6)
+out[[1]]
+out[[2]]
+
 # Estimate a single tree
 to_keep <- seq(0,(n-1)) # do not use "bagging" for single tree, i.e. keep all obs
 Tree <- Reg_Tree(y_train, X_train, to_keep)
@@ -42,7 +46,19 @@ comp <- (t(b)%x%matrix(1,n,1))*X_train
 
 # comparing the first period (this is in sample):
 
-tst <- cbind(comp[1,], FC[1,])
+tst <- cbind(comp[3,], FC[3,])
 colnames(tst) <- c("true contribution", "estimated contribution")
 tst
+
+
+out <- reg_forest(y_train, X_train, regression = TRUE)
+
+out$mean_abs_feature_contribution
+
+out$oob_feature_contribution
+
+ts.plot(out$oob_feature_contribution, col = rainbow(20))
+
+
+
 

@@ -13,6 +13,17 @@ SimData <- function(n = 100){
               y = y))
 }
 
+sim <- SimData(n)
+X <- sim$X
+y <- sim$y
+y[200] <- NA
+
+last_obs <- max(which(is.finite(y)))
+
+rf <- randomForest(x = X[1:last_obs, ], y = c(y[1:last_obs]))
+rf_fit <- predict(rf, X[last_obs+1, ])
+
+
 
 
 run_sim <- function(n){

@@ -5,9 +5,18 @@
 using namespace arma;
 using namespace Rcpp;
 #include "utils.h"
+#include <random>
 
 // [[Rcpp::export]]
-arma::vec fast_cut(arma::vec x, // predictor
+double rand_geom(const double n){
+  std::random_device gen;
+  std::geometric_distribution<> d(n); 
+  double draw = d(gen);
+  return(draw);
+}
+
+// [[Rcpp::export]]
+arma::vec fast_cut_alt(arma::vec x, // predictor
                    arma::vec y){ // response
   uvec obs = find_finite(x);
   uvec not_obs = find_nonfinite(x);
@@ -30,10 +39,10 @@ arma::vec fast_cut(arma::vec x, // predictor
   }
   double imin = index_min(sum(vnce,0));
   vec out = {vnce(0,imin), vnce(1,imin), vnce_na, imin};
-  return(out); // less than cut mean, greater than cut mean, less variance, greater variance, NA variance, and cut. 
+  return(out); // less variance, greater variance, NA variance, and cut. 
 }
 // [[Rcpp::export]]
-arma::field<arma::vec> cut(arma::vec x, // predictor
+arma::field<arma::vec> cut_alt(arma::vec x, // predictor
                        arma::vec y, // response
                        arma::uvec ind, // index
                        double imin){  // where to cut
@@ -69,39 +78,46 @@ arma::field<arma::vec> cut(arma::vec x, // predictor
 }
 // find the best series in X to identify y
 // [[Rcpp::export]]
-arma::field<arma::vec> bestsplit(arma::mat X, // predictors
+arma::field<arma::vec> bestsplit_alt(arma::mat X, // predictors
                        arma::vec y, // response
                        arma::uvec ind, // index of observations in original data
-                       arma::uword n){ // number of candidates to select
+                       double n){ // geometric dist par
   // select candidates for splitting
-  field<uvec> cnd = select_rnd(X.n_cols, n);
-  uvec candidates = cnd(0); // randomly selected candidates
-  mat splits(4,n); 
+  // field<uvec> cnd = select_rnd(X.n_cols, n);
+  uword k = X.n_cols;
+  // uvec candidates = cnd(0); // randomly selected candidates
+  mat splits(4,k); 
   vec tmp;
-  for(uword j=0; j<n; j++){
-    tmp = fast_cut(X.col(candidates(j)), y); 
+  for(uword j=0; j<k; j++){
+    tmp = fast_cut_alt(X.col(j), y); 
     splits.col(j) = tmp; // pars
   }
   vec tot_var = trans(sum(splits.rows(0,2),0)); // rows 2:4 contain variance for high, low, and NA values
-  uword min_idx = index_min(tot_var); // which series offers max reduction in variance of y
-  field<vec> out = cut(X.col(candidates(min_idx)), y, ind, splits(3, min_idx)); // re-running cut here to keep things clean
+  uword c = rand_geom(n);
+  if(c>=k){
+    c=k-1;
+  }
+  uvec sort_idx = sort_index(tot_var); // expensive function... rethink
+  uword min_idx = sort_idx(c); // selected splitting variable
+  field<vec> out = cut_alt(X.col(min_idx), y, ind, splits(3, min_idx)); // re-running cut here to keep things clean
   // clunky but effective
   vec par_out(9);
-  par_out(0) = candidates(min_idx);
+  par_out(0) = min_idx; // index
   par_out(span(1,8)) = out(0);
-  out(0) = par_out;
-  return(out); // for find_cut() see function above
+  out(0) = par_out; // adding index to out(0) here
+  return(out); 
 }
 // [[Rcpp::export]]
-arma::mat regtree(arma::vec y, // response (no missing obs)
+arma::mat regtree_alt(arma::vec y, // response (no missing obs)
           arma::mat X, // predictors (missing obs OK)
           arma::uvec to_keep,
           arma::uword min_obs = 5, 
-          arma::uword max_nodes= 1000){
+          arma::uword max_nodes= 1000,
+          double n = .5){
   X = X.rows(to_keep); // this shuffles X and y but it shouldn't matter
   y = y(to_keep);
-  double xnc = X.n_cols;
-  uword n = ceil(xnc/3); // number of candidates to use at each split
+  // double xnc = X.n_cols;
+  // uword n = ceil(xnc/3); // number of candidates to use at each split
   mat Tree(max_nodes, 9, fill::zeros);
   Tree(0,5) = mean(y); // unconditional mean
   Tree(0,6) = sum(square(y-Tree(0,5))); // unconditional var
@@ -114,7 +130,7 @@ arma::mat regtree(arma::vec y, // response (no missing obs)
   uword i = 0;
   uword j = 0;
   while(i+2<max_nodes){
-    tmp = bestsplit(X.rows(I(j)), y(I(j)), I(j), n);
+    tmp = bestsplit_alt(X.rows(I(j)), y(I(j)), I(j), n);
     par = tmp(0);
     if(any(par(span(1,4)))){ //  enough observations to split
       Tree(j,0) = par(0); // which variable
@@ -149,7 +165,7 @@ arma::mat regtree(arma::vec y, // response (no missing obs)
 
 // Fit a single observation using the estimated tree
 // [[Rcpp::export]]
-arma::field<arma::vec> fitvec(arma::vec x,
+arma::field<arma::vec> fitvec_alt(arma::vec x,
                        arma::mat Tree,
                        arma::uword maxit = 1000){
   uword j=0; uword j_old=0; uword it=0; 
@@ -180,14 +196,14 @@ arma::field<arma::vec> fitvec(arma::vec x,
 }
 // Fit a vector of observations using the estimated tree
 // [[Rcpp::export]]
-arma::field<arma::mat> fitmat(arma::mat X,
+arma::field<arma::mat> fitmat_alt(arma::mat X,
                   arma::mat Tree){
   vec Mu(X.n_cols);
   field<vec> tmp;
   mat FC(X.n_rows, X.n_cols, fill::zeros);
   field<mat> out(2);
   for(uword j=0; j<X.n_cols; j++){
-    tmp = fitvec(X.col(j), Tree);
+    tmp = fitvec_alt(X.col(j), Tree);
     Mu(j) = as_scalar(tmp(0));
     FC.col(j) = tmp(1);
   }
@@ -197,8 +213,9 @@ arma::field<arma::mat> fitmat(arma::mat X,
 }
 // Fit output from RegForest
 // [[Rcpp::export]]
-arma::field<arma::mat> fitfield(arma::mat X,
-                  arma::field<arma::mat> Trees){
+arma::field<arma::mat> fitfield_alt(arma::mat X,
+                  arma::field<arma::mat> Trees,
+                  arma::vec weight){ // length must agree with slices of Tree, must have mean 1
   uword k = Trees.n_elem;
   vec Mu(X.n_rows, fill::zeros); // mean (ie prediction)
   mat FC(X.n_cols, X.n_rows, fill::zeros); // feature contribution
@@ -206,9 +223,9 @@ arma::field<arma::mat> fitfield(arma::mat X,
   field<mat> out(2);
   X = trans(X); //transpose for FitMat
   for(uword j=0; j<Trees.n_elem; j++){
-    tmp = fitmat(X, Trees(j));
-    Mu += tmp(0);
-    FC += tmp(1);
+    tmp = fitmat_alt(X, Trees(j));
+    Mu += tmp(0)*weight(j);
+    FC += tmp(1)*weight(j);
   }
   out(0) = Mu/k; // take average response (div by num trees)
   out(1) = trans(FC)/k;
@@ -217,27 +234,28 @@ arma::field<arma::mat> fitfield(arma::mat X,
 
 // Draw 'draws' number of trees
 // [[Rcpp::export]]
-Rcpp::List rforest(arma::vec y, // response (no missing obs)
+Rcpp::List rforest_alt(arma::vec y, // response (no missing obs)
                    arma::mat X, // predictors (missing obs OK)
-                   arma::uword min_obs = 5,
-                   arma::uword max_nodes = 1000,
-                   arma::uword draws = 1000){
+                   arma::uword min_obs = 5, // min node size
+                   arma::uword max_nodes = 1000, // max number of nodes
+                   arma::uword draws = 1000,
+                   double geom_par = 0.5){ // number of trees
   field<mat> Trees(draws);
-  double T = X.n_rows;
+  double T = X.n_rows;  // total number of obs
   vec oob(T); mat Tree;
   field<uvec> to_keep;
   mat OOB(T, draws);
   mat fc(T,X.n_cols);  // out of bag feature contributions
-  cube FC(T, X.n_cols, draws);
-  vec mse(draws);
+  cube FC(T, X.n_cols, draws);  // store OOB feature contribution
+  vec mse(draws); // store OOB MSE for each model
   field<mat> tmp;
-  for(uword j = 0; j<draws; j++){
-    to_keep = select_rnd(T, ceil(0.632*T));
-    Tree = regtree(y, X, to_keep(0), min_obs, max_nodes);
-    tmp = fitmat(trans(X.rows(to_keep(1))), Tree);
+  for(uword j = 0; j<draws; j++){  // new tree (model) for each iteration
+    to_keep = select_rnd(T, ceil(0.632*T));  // idx for in and out of bag
+    Tree = regtree_alt(y, X, to_keep(0), min_obs, max_nodes, geom_par); // to_keep(0) is in bag
+    tmp = fitmat_alt(trans(X.rows(to_keep(1))), Tree);  // to_keep(1) is OOB
+    mse(j) = mean(square(y(to_keep(1)) - tmp(0)));
     oob.fill(datum::nan);
     oob(to_keep(1)) = tmp(0);
-    mse(j) = mean(square(y(to_keep(1)) - tmp(0)));
     fc.fill(datum::nan);
     fc.rows(to_keep(1)) = trans(tmp(1));
     OOB.col(j) = oob;

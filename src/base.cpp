@@ -211,35 +211,41 @@ arma::mat Reg_Tree(arma::vec y, // response (no missing obs)
 arma::field<arma::vec> FitVec(arma::vec x,
               arma::mat Tree,
               arma::uword maxit = 1000){
-  uword j = 0; double it=0; double y=0; 
-  uword i = 0; // arbitrary initial value
+  uword j=0; double it=1; double y=Tree(0,5); 
+  uword i = Tree(0,0); 
   field<vec> out(2); // out(0) is value of y, out(1) is feature contributions
   vec fc(x.n_elem, fill::zeros); // vector of feature contributions
   double c; // change in y at current node
-  while(Tree(j,9) != 1 && it<maxit){
-    if(!std::isfinite(x(i))){
+  // The first row of Tree needs to be treated differently
+  if(Tree(0,9)==1 || !std::isfinite(x(i))){ // if there is only one node
+    out[0] = y;
+    out[1] = fc;
+    return(out);
+  } // else continue with the function
+  if(x(i)>Tree(j,1)){
+    j = Tree(j,3); // next row of Tree
+  }else{
+    j = Tree(j,2);
+  }
+  while(it<maxit){
+    c = Tree(j,5) + Tree(j,6)*x(i); // contribution
+    fc(i) += c; 
+    y += c;  
+    i = Tree(j,0); // next cut variable index
+    if(Tree(j,9)==1 || !std::isfinite(x(i))){ 
       out[0] = y;
       out[1] = fc;
       return(out);
+    } // if next value is not finite or we are on a terminal node, we're done
+    if(x(i)>Tree(j,1)){ // else go to next row of tree
+      j = Tree(j,3); // next row of Tree
     }else{
-      c = Tree(j,5) + Tree(j,6)*x(i);
-      if(it>0){
-        fc(i) += c; // do not count unconditional mean
-      }
-      y += c;  
-      i = Tree(j,0); // next cut variable index
-      if(x(i)>Tree(j,1)){
-        j = Tree(j,3); // next row of Tree
-      }else{
-        j = Tree(j,2);
-      }
-      it++;
+      j = Tree(j,2);
     }
+    it++;
   }
-  c = Tree(j,5) + Tree(j,6)*x(i); // terminal node (leaf)
-  fc(i) += c;
-  y += c; 
-  out[0] = y;
+  Rcpp::warning("Reached max iterations in fitting tree");
+  out[0] = y; // should never really get here 
   out[1] = fc;
   return(out);
 }
@@ -282,6 +288,27 @@ arma::field<arma::mat> Fit_Field(arma::mat X,
   return(out);
 }
 
+// Fit output from RegForest using weights on trees
+// [[Rcpp::export]]
+arma::field<arma::mat> Fit_Field_Weight(arma::mat X,
+                                 arma::field<arma::mat> Trees,
+                                 arma::vec weight){
+  uword k = Trees.n_elem;
+  vec Mu(X.n_rows, fill::zeros); // mean (ie prediction)
+  mat FC(X.n_cols, X.n_rows, fill::zeros); // feature contribution
+  field<mat> tmp;
+  field<mat> out(2);
+  X = trans(X); //transpose for FitMat
+  for(uword j=0; j<k; j++){
+    tmp = FitMat(X, Trees(j));
+    Mu += tmp(0)*weight(j);
+    FC += tmp(1)*weight(j);
+  }
+  out(0) = Mu/k; // take average response (div by num trees)
+  out(1) = trans(FC)/k;
+  return(out);
+}
+
 // Draw 'draws' number of trees
 // [[Rcpp::export]]
 Rcpp::List Reg_Forest(arma::vec y, // response (no missing obs)
@@ -296,6 +323,7 @@ Rcpp::List Reg_Forest(arma::vec y, // response (no missing obs)
   field<uvec> to_keep;
   mat OOB(T, draws);
   cube FC(T, X.n_cols, draws);
+  vec mse(draws);
   field<mat> tmp;
   for(uword j = 0; j<draws; j++){
     to_keep = select_rnd(T, ceil(0.632*T));
@@ -304,6 +332,7 @@ Rcpp::List Reg_Forest(arma::vec y, // response (no missing obs)
     fc.fill(datum::nan);
     tmp = FitMat(trans(X.rows(to_keep(1))), Tree); // to_keep(1) is out of bag
     oob(to_keep(1)) = tmp(0);
+    mse(j) = mean(square(y(to_keep(1)) - tmp(0)));
     fc.rows(to_keep(1)) = trans(tmp(1));
     OOB.col(j) = oob;
     FC.slice(j) = fc;
@@ -313,5 +342,6 @@ Rcpp::List Reg_Forest(arma::vec y, // response (no missing obs)
   rtrn["Trees"] = Trees;
   rtrn["OOB"] = OOB; // out of bag fit
   rtrn["FC"] = FC; // out of bag feature contribution
+  rtrn["MSE"] = mse;
   return(rtrn);
 }

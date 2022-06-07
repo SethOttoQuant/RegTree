@@ -3,8 +3,11 @@
 # Calls for C++ functions
 RegForest <- function(y,X, min_obs=15, max_nodes = 31, draws = 1000) Reg_Forest(y,X,min_obs,max_nodes,draws)
 RndForest <- function(y, X, min_obs=5, max_nodes=1000, draws = 1000) rforest(y, X, min_obs, max_nodes, draws)
+AltForest <- function(y, X, min_obs=5, max_nodes=1000, draws = 1000, geom_par = .5) rforest_alt(y, X, min_obs, max_nodes, draws, geom_par)
 FitField <- function(X,Trees) Fit_Field(X,Trees)
+FitFieldWeight <- function(X,Trees,weight) Fit_Field_Weight(X,Trees,weight)
 StdFitField <- function(X,Trees) fitfield(X,Trees)
+StdFitFieldWeight <- function(X,Trees,weight) fitfield_alt(X,Trees,weight)
 RegTree <- function(y,X,max_nodes = 31) Reg_Tree(y,X,max_nodes)
 StdRegTree <- function(y,X,min_obs=5,max_nodes=1000) regtree(y,X,min_obs,max_nodes)
 quickreg <- function(x,y,r=0) QuickReg(x,y,r)
@@ -90,8 +93,9 @@ all_splits <- function(Trees, X_names = NULL, regression = TRUE){
 }
 
 reg_forest <- function(y, X, min_obs="auto", max_nodes = "auto", draws = 1000, 
-                       steps = 1, regression = FALSE, return_trees = TRUE, 
-                       orthogonal = FALSE){
+                       steps = 1, type = c("standard", "regression", "alt"), return_trees = TRUE, 
+                       orthogonal = FALSE, weight_by_mse = TRUE, geom_par=.5, weight_pow = 2){
+  type <- match.arg(type)
   y <- c(y)
   X <- as.matrix(X)
   if(length(y) != NROW(X)) stop("Length of 'y' and rows of 'X' to not agree")
@@ -106,28 +110,38 @@ reg_forest <- function(y, X, min_obs="auto", max_nodes = "auto", draws = 1000,
     X <- fake_pca(X)
   }
   if(max_nodes == "auto"){
-    if(regression){
-      max_nodes = 40
+    if(type == "regression"){
+      max_nodes <- 40
     }else{
-      max_nodes = 1000
+      max_nodes <- 1000
     }
   }
   if(min_obs == "auto"){
-    if(regression){
-      min_obs = 15
+    if(type == "regression"){
+      min_obs <- 15
     }else{
-      min_obs = 5
+      min_obs <- 5
     }
   }
-  if(regression){
+  if(type == "regression"){
     rf_out <- RegForest(y[y_finite], X[y_finite, ], min_obs, max_nodes, draws) # estimate model
-  }else{
+  }else if(type=="standard"){
     rf_out <- RndForest(y[y_finite], X[y_finite, ], min_obs, max_nodes, draws) # estimate model
+  }else if(type=="alt"){
+    rf_out <- AltForest(y[y_finite], X[y_finite, ], min_obs, max_nodes, draws, geom_par) # estimate model
   }
-
-  oob <- rowMeans(rf_out$OOB, na.rm = TRUE)
+  
+  if(weight_by_mse){
+    weight = (rf_out$MSE/mean(rf_out$MSE))^-weight_pow # standardize first to avoid very large numbers
+    weight = weight/mean(weight) # standardize again
+    oob <- rowMeans(t(apply(rf_out$OOB, 1, function(j) j*weight)), na.rm = TRUE)
+    for(j in seq(draws)) rf_out$FC[,,j] <- rf_out$FC[,,j]*weight[j]
+    fc_oob <- apply(rf_out$FC, c(1,2), mean, na.rm=TRUE) # contributions for each period
+  }else{
+    oob <- rowMeans(rf_out$OOB, na.rm = TRUE)
+    fc_oob <- apply(rf_out$FC, c(1,2), mean, na.rm=TRUE) # contributions for each period
+  }
   mse <- mean((y[y_finite]-oob)^2)
-  fc_oob <- apply(rf_out$FC, c(1,2), mean, na.rm=TRUE) # contributions for each period
   
   cnames <- colnames(X)
   if(!orthogonal){
@@ -138,18 +152,32 @@ reg_forest <- function(y, X, min_obs="auto", max_nodes = "auto", draws = 1000,
     allsplt <- NULL
   }
   
-  if(regression){
-    InSamp <- FitField(X, rf_out$Trees) # in sample fit
-    fit <- InSamp[[1]]
-    fc_fit <- InSamp[[2]]
+  if(type=="regression"){
+    if(weight_by_mse){
+      InSamp <- FitFieldWeight(X, rf_out$Trees, weight) # in sample fit
+      fit <- InSamp[[1]]
+      fc_fit <- InSamp[[2]]
+    }else{
+      InSamp <- FitField(X, rf_out$Trees) # in sample fit
+      fit <- InSamp[[1]]
+      fc_fit <- InSamp[[2]]
+    }
   }else{
-    InSamp <- StdFitField(X, rf_out$Trees) # in sample fit
-    fit <- InSamp[[1]]
-    fc_fit <- InSamp[[2]]
+    if(weight_by_mse){
+      InSamp <- StdFitFieldWeight(X, rf_out$Trees, weight) # in sample fit
+      fit <- InSamp[[1]]
+      fc_fit <- InSamp[[2]]
+    }else{
+      InSamp <- StdFitField(X, rf_out$Trees) # in sample fit
+      fit <- InSamp[[1]]
+      fc_fit <- InSamp[[2]]
+    }
   }
 
-  out <- list(fit = fit, true_vals = y, mean_abs_feature_contribution = colMeans(abs(fc_fit)))
+  out <- list(in_samp_fit = fit, true_vals = y, mean_abs_feature_contribution = colMeans(abs(fc_fit)))
   if(return_trees) out$Trees <- rf_out$Trees
+  if(weight_by_mse) out$weight <- weight
+  out$MSE <- rf_out$MSE
   out_of_sample <- rep(NA, k)
   out_of_sample[y_finite] <- oob
   out_of_sample[!y_finite] <- fit[!y_finite]
@@ -157,6 +185,7 @@ reg_forest <- function(y, X, min_obs="auto", max_nodes = "auto", draws = 1000,
   FC <- matrix(NA, NROW(X), NCOL(X))
   FC[y_finite, ] <- fc_oob
   FC[!y_finite, ] <- fc_fit[!y_finite, ]
+  colnames(FC) <- colnames(X)
     
   out$out_of_sample <- out_of_sample
   out$mse <- mse

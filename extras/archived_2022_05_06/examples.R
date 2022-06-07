@@ -1,9 +1,9 @@
-library(RegTree)
-library(randomForest)
-library(ranger)
+# library(RegTree)
+# library(randomForest)
+# library(ranger)
 library(dateutils)
 library(devtools)
-load_all()
+# load_all()
 
 # ------ Simulate Data --------------
 SimData <- function(n = 100){
@@ -15,16 +15,59 @@ SimData <- function(n = 100){
               y = y))
 }
 
+SimDataNonLin <- function(n = 100){
+  X <- matrix(rnorm(n*10),n,10)
+  b1 <- c(1,5,3,0,2,-1,0,-3,0,0)
+  b2 <- c(-2,0,0,2,-1,0,4,-3,1,-1)
+  b3 <- c(0,0,1,0,0,-3,3,0,0,1)
+  z <- rnorm(n)
+  y <- X%*%b1
+  y[z<(-.5)] <- X[z<(-.5), ]%*%b2
+  y[z>.5] <- X[z>.5, ]%*%b3
+  y <- y + rnorm(n)
+  X <- cbind(X,z)
+  return(list(X = X,
+              y = y))
+}
+
 n <- 200
 # Run a single simulation
-sim <- SimData(n)
-X_train <- sim$X
-y_train <- sim$y
-X_train[1:100,1:10] <- NA
-# X_train[1:50, 2] <- NA
-sim <- SimData(n)
+sim <- SimDataNonLin(n)
+X <- sim$X
+y <- sim$y
+X[1:100,1:3] <- NA
+sim <- SimDataNonLin(n)
 X_fit <- sim$X
 y_true <- sim$y
+
+A <- Sys.time()
+tst <- reg_forest(y, X, weight_by_mse = TRUE, type = "alt", geom_par = .5, weight_pow = 8)
+
+out <- StdFitFieldWeight(X_fit, tst$Trees, tst$)
+
+ts.plot(cbind(tst$true_vals, tst$out_of_sample), col = c("blue", "red"))
+tst$mse
+
+tst$MSE
+
+rand_geom(.5)
+
+
+bob <- Reg_Forest(y, X)
+
+oob <- rowMeans(bob$OOB, na.rm = TRUE)
+
+tmp <- FitMat(t(X), bob$Trees[[2]])
+tmp[[1]]
+
+
+
+jim <- FitField(X, bob$Trees)
+jim[[1]]
+
+sue <- FitVec(X[2,], bob$Trees[[2]])
+sue[[1]]
+
 # fast_cut(X_train[,19], y_train)
 # bob <- bestsplit(X_train, y_train, seq(0,NROW(X_train)-1), 10)
 # out <- RegTree(y_train, X_train)

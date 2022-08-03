@@ -12,7 +12,7 @@ if(length(args)>1){
   type <- "standard"
 }
 if(length(args)>2){
-  weight_pow <- args[[3]] # number. Default is 2
+  weight_pow <- as.numeric(args[[3]]) # number. Default is 2
   if(weight_pow==0){  # set to zero to not weight
     weight_by_mse <- FALSE
   }else{

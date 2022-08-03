@@ -69,7 +69,15 @@ DT <- DT[pub_date < as.Date("2022-01-12")]# 2022-01-12  # for CPI measures
 # 3.311736e-05                           3.031027e-05                           2.899485e-05 
 # Crude Oil 0                                 Gold 0
 
-# ts.plot(DT[series_name == tgt]$value)
+# OUT <- run_forecast(tgt = cpi_tgts[1],
+#                     dt = DT,
+#                     lib = LIB,
+#                     detrend = FALSE,
+#                     type = "standard",
+#                     as_of_date = NULL)
+
+
+
 
 out_df <- data.table("target"=cpi_tgts, "rf_full"=0, "rfrn_full"=0,
                      "rf_sub"=0, "rfrn_sub"=0)

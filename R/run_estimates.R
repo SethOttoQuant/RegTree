@@ -1,5 +1,9 @@
 
-run_forecast <- function(tgt, dt, lib, detrend = FALSE, regress = FALSE, as_of_date = NULL){
+run_forecast <- function(tgt, dt, lib, detrend = FALSE, 
+                         type = c("standard", "regression", "alt"),
+                         as_of_date = NULL, weight_by_mse = FALSE, geom_par=.5, 
+                         weight_pow = 2){
+  type <- match.arg(type)
   if(!"series_name"%in%names(dt)) stop("Column 'series_name' is required")
   if(!"ref_date"%in%names(dt)) stop("Column 'ref_date' is required")
   if(!"value"%in%names(dt)) stop("Column 'value' is required")
@@ -8,7 +12,6 @@ run_forecast <- function(tgt, dt, lib, detrend = FALSE, regress = FALSE, as_of_d
     dt <- data.table(dt)
     dt <- dt[as_of <= as_of_date] # drop data that would not have been observed
   }
-  regress = as.logical(regress)
   detrend = as.logical(detrend)
   MF <- process_MF(LHS = dt[series_name == tgt], RHS = dt[series_name != tgt], LHS_lags = 3, pub_date_name = NULL)
   X <- process(MF, lib, detrend = detrend, pub_date_name = NULL)
@@ -20,15 +23,17 @@ run_forecast <- function(tgt, dt, lib, detrend = FALSE, regress = FALSE, as_of_d
   dates <- W$ref_date
   W <- as.matrix(  W[ , -c(1,2), with = FALSE])
   
-  if(regress){
+  if(type=="regression"){
     idx <- abs(W) > 5 | is.na(W)
     W[idx] <- 5*sign(W[idx]) # W is scaled, so this drops outliers
   } 
   
-  out <- reg_forest(y, W, steps = 1, draws = 2000, regression = regress) # estimate model for one step ahead; pretty slow
+  out <- reg_forest(y, W, steps = 1, draws = 2000, type=type, 
+                    weight_by_mse = weight_by_mse, geom_par=geom_par, 
+                    weight_pow = weight_pow) # estimate model for one step ahead; pretty slow
 
-  last_obs <- nrow(out$fit)
-  raw_res <- data.table("ref_date" = dates[seq(last_obs)], "fit" = out$fit, "true" = out$true_vals)
+  last_obs <- nrow(out$in_samp_fit)
+  raw_res <- data.table("ref_date" = dates[seq(last_obs)], "fit" = out$in_sample_fit, "true" = out$true_vals)
   # pretty_plot(tail(raw_res, 120))
   
   df <- merge(data.table("ref_date"=dates), X[series_name == tgt0], 

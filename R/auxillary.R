@@ -100,12 +100,16 @@ reg_forest <- function(y, X, min_obs="auto", max_nodes = "auto", draws = 1000,
   X <- as.matrix(X)
   if(length(y) != NROW(X)) stop("Length of 'y' and rows of 'X' to not agree")
   y_finite <- is.finite(y) # fit model on periods in which y is finite
-  last_period <- max(which(y_finite)) + steps # the period we want to predict
-  k <- min(NROW(X), last_period)
-  y <- y[seq(k)]
-  X <- X[seq(k),]
-  y_finite <- y_finite[seq(k)]
-  X <- X[ ,is.finite(X[k, ])] # if X not observed in the period we wish to predict, drop it
+  if(!is.null(steps)){
+    last_period <- max(which(y_finite)) + steps # the period we want to predict
+    k <- min(NROW(X), last_period)
+    y <- y[seq(k)]
+    X <- X[seq(k),]
+    y_finite <- y_finite[seq(k)]
+    X <- as.matrix(X[ ,is.finite(X[k, ])]) # if X not observed in the period we wish to predict, drop it
+  }else{ # if NULL ignore time series dimension of the problem and predict using everything
+    k <- length(y)
+  }
   if(orthogonal){
     X <- fake_pca(X)
   }

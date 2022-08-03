@@ -43,7 +43,7 @@ y_true <- sim$y
 A <- Sys.time()
 tst <- reg_forest(y, X, weight_by_mse = TRUE, type = "alt", geom_par = .5, weight_pow = 8)
 
-out <- StdFitFieldWeight(X_fit, tst$Trees, tst$)
+# out <- StdFitFieldWeight(X_fit, tst$Trees)
 
 ts.plot(cbind(tst$true_vals, tst$out_of_sample), col = c("blue", "red"))
 tst$mse

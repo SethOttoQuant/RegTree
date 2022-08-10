@@ -304,8 +304,8 @@ arma::field<arma::mat> Fit_Field_Weight(arma::mat X,
     Mu += tmp(0)*weight(j);
     FC += tmp(1)*weight(j);
   }
-  out(0) = Mu/k; // take average response (div by num trees)
-  out(1) = trans(FC)/k;
+  out(0) = Mu/sum(weight); // take average response (div by num trees)
+  out(1) = trans(FC)/sum(weight);
   return(out);
 }
 

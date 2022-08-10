@@ -3,6 +3,7 @@
 # Calls for C++ functions
 RegForest <- function(y,X, min_obs=15, max_nodes = 31, draws = 1000) Reg_Forest(y,X,min_obs,max_nodes,draws)
 RndForest <- function(y, X, min_obs=5, max_nodes=1000, draws = 1000) rforest(y, X, min_obs, max_nodes, draws)
+MAEForest <- function(y, X, min_obs=5, max_nodes=1000, draws = 1000) maeforest(y, X, min_obs, max_nodes, draws)
 AltForest <- function(y, X, min_obs=5, max_nodes=1000, draws = 1000, geom_par = .5) rforest_alt(y, X, min_obs, max_nodes, draws, geom_par)
 FitField <- function(X,Trees) Fit_Field(X,Trees)
 FitFieldWeight <- function(X,Trees,weight) Fit_Field_Weight(X,Trees,weight)
@@ -93,7 +94,7 @@ all_splits <- function(Trees, X_names = NULL, regression = TRUE){
 }
 
 reg_forest <- function(y, X, min_obs="auto", max_nodes = "auto", draws = 1000, 
-                       steps = 1, type = c("standard", "regression", "alt"), return_trees = TRUE, 
+                       steps = 1, type = c("standard", "regression", "alt", "mae"), return_trees = TRUE, 
                        orthogonal = FALSE, weight_by_mse = TRUE, geom_par=.5, weight_pow = 2){
   type <- match.arg(type)
   y <- c(y)
@@ -133,6 +134,8 @@ reg_forest <- function(y, X, min_obs="auto", max_nodes = "auto", draws = 1000,
     rf_out <- RndForest(y[y_finite], X[y_finite, ], min_obs, max_nodes, draws) # estimate model
   }else if(type=="alt"){
     rf_out <- AltForest(y[y_finite], X[y_finite, ], min_obs, max_nodes, draws, geom_par) # estimate model
+  }else if(type=="mae"){
+    rf_out <- MAEForest(y[y_finite], X[y_finite, ], min_obs, max_nodes, draws) # estimate model
   }
   
   if(weight_by_mse){
@@ -199,6 +202,30 @@ reg_forest <- function(y, X, min_obs="auto", max_nodes = "auto", draws = 1000,
   out$X_names <- cnames
   out$idx <- seq(k)
   return(out)
+}
+
+skew_loss <- function(x, y){
+  y[y>0] <- y[y>0]^x[1]
+  y[y>0] <- y[y>0]*abs(x[2])
+  loss <- (100*mean(y, na.rm=TRUE))^2 + (sum(y^3, na.rm=TRUE))^2
+  return(loss)
+}
+
+make_symetric <- function(y){
+  y_finite <- is.finite(y)
+  y_in <- y[y_finite]
+  y_med <- median(y_in)
+  y_in <- y_in - y_med
+  out <- optim(par=c(1,1), fn=skew_loss, y=y_in)
+  x <- out$par
+  y_in[y_in>0] <- y_in[y_in>0]^x[1]
+  y_in[y_in>0] <- y_in[y_in>0]*abs(x[2])
+  y[y_finite] <- y_in
+  return(list(
+    y=y,
+    x=x,
+    med=y_med
+  ))
 }
 
 

@@ -5,6 +5,7 @@
 using namespace arma;
 using namespace Rcpp;
 #include "utils.h"
+#include "rfbase.h"
 #include <random>
 
 // [[Rcpp::export]]
@@ -163,72 +164,72 @@ arma::mat regtree_alt(arma::vec y, // response (no missing obs)
   return(Tree.rows(0,i));
 }
 
-// Fit a single observation using the estimated tree
-// [[Rcpp::export]]
-arma::field<arma::vec> fitvec_alt(arma::vec x,
-                       arma::mat Tree,
-                       arma::uword maxit = 1000){
-  uword j=0; uword j_old=0; uword it=0; 
-  double y = Tree(0,5); double y_old=Tree(0,5);
-  field<vec> out(2); // out(0) is value of y, out(1) is feature contributions
-  vec fc(x.n_elem, fill::zeros); // vector of feature contributions
-  while(Tree(j,8) != 1 && it<maxit){
-    if(!std::isfinite(x(Tree(j,0)))){
-      break;
-    }else{
-      if(x(Tree(j,0))>Tree(j,1)){
-        j = Tree(j,3);
-        y = Tree(j,5);
-        fc(Tree(j_old,0)) += y - y_old;
-      }else{
-        j = Tree(j,2);
-        y = Tree(j,5);
-        fc(Tree(j_old,0)) += y - y_old;
-      }
-      y_old = y;
-      j_old = j;
-      it++;
-    }
-  }
-  out[0] = y;
-  out[1] = fc;
-  return(out);
-}
-// Fit a vector of observations using the estimated tree
-// [[Rcpp::export]]
-arma::field<arma::mat> fitmat_alt(arma::mat X,
-                  arma::mat Tree){
-  vec Mu(X.n_cols);
-  field<vec> tmp;
-  mat FC(X.n_rows, X.n_cols, fill::zeros);
-  field<mat> out(2);
-  for(uword j=0; j<X.n_cols; j++){
-    tmp = fitvec_alt(X.col(j), Tree);
-    Mu(j) = as_scalar(tmp(0));
-    FC.col(j) = tmp(1);
-  }
-  out(0) = Mu;
-  out(1) = FC;
-  return(out);
-}
+// // Fit a single observation using the estimated tree
+// // [[Rcpp::export]]
+// arma::field<arma::vec> fitvec_alt(arma::vec x,
+//                        arma::mat Tree,
+//                        arma::uword maxit = 1000){
+//   uword j=0; uword j_old=0; uword it=0; 
+//   double y = Tree(0,5); double y_old=Tree(0,5);
+//   field<vec> out(2); // out(0) is value of y, out(1) is feature contributions
+//   vec fc(x.n_elem, fill::zeros); // vector of feature contributions
+//   while(Tree(j,8) != 1 && it<maxit){
+//     if(!std::isfinite(x(Tree(j,0)))){
+//       break;
+//     }else{
+//       if(x(Tree(j,0))>Tree(j,1)){
+//         j = Tree(j,3);
+//         y = Tree(j,5);
+//         fc(Tree(j_old,0)) += y - y_old;
+//       }else{
+//         j = Tree(j,2);
+//         y = Tree(j,5);
+//         fc(Tree(j_old,0)) += y - y_old;
+//       }
+//       y_old = y;
+//       j_old = j;
+//       it++;
+//     }
+//   }
+//   out[0] = y;
+//   out[1] = fc;
+//   return(out);
+// }
+// // Fit a vector of observations using the estimated tree
+// // [[Rcpp::export]]
+// arma::field<arma::mat> fitmat_alt(arma::mat X,
+//                   arma::mat Tree){
+//   vec Mu(X.n_cols);
+//   field<vec> tmp;
+//   mat FC(X.n_rows, X.n_cols, fill::zeros);
+//   field<mat> out(2);
+//   for(uword j=0; j<X.n_cols; j++){
+//     tmp = fitvec_alt(X.col(j), Tree);
+//     Mu(j) = as_scalar(tmp(0));
+//     FC.col(j) = tmp(1);
+//   }
+//   out(0) = Mu;
+//   out(1) = FC;
+//   return(out);
+// }
 // Fit output from RegForest
 // [[Rcpp::export]]
 arma::field<arma::mat> fitfield_alt(arma::mat X,
                   arma::field<arma::mat> Trees,
                   arma::vec weight){ // length must agree with slices of Tree, must have mean 1
-  uword k = Trees.n_elem;
+  // uword k = Trees.n_elem;
   vec Mu(X.n_rows, fill::zeros); // mean (ie prediction)
   mat FC(X.n_cols, X.n_rows, fill::zeros); // feature contribution
   field<mat> tmp;
   field<mat> out(2);
   X = trans(X); //transpose for FitMat
   for(uword j=0; j<Trees.n_elem; j++){
-    tmp = fitmat_alt(X, Trees(j));
+    tmp = fitmat(X, Trees(j));
     Mu += tmp(0)*weight(j);
     FC += tmp(1)*weight(j);
   }
-  out(0) = Mu/k; // take average response (div by num trees)
-  out(1) = trans(FC)/k;
+  out(0) = Mu/sum(weight); // take average response (div by num trees)
+  out(1) = trans(FC)/sum(weight);
   return(out);
 }
 
@@ -252,7 +253,7 @@ Rcpp::List rforest_alt(arma::vec y, // response (no missing obs)
   for(uword j = 0; j<draws; j++){  // new tree (model) for each iteration
     to_keep = select_rnd(T, ceil(0.632*T));  // idx for in and out of bag
     Tree = regtree_alt(y, X, to_keep(0), min_obs, max_nodes, geom_par); // to_keep(0) is in bag
-    tmp = fitmat_alt(trans(X.rows(to_keep(1))), Tree);  // to_keep(1) is OOB
+    tmp = fitmat(trans(X.rows(to_keep(1))), Tree);  // to_keep(1) is OOB
     mse(j) = mean(square(y(to_keep(1)) - tmp(0)));
     oob.fill(datum::nan);
     oob(to_keep(1)) = tmp(0);

@@ -80,15 +80,15 @@ for(j in seq(tst_size)){
   Xh <- as.matrix(dth[ , -c(1,2), with=FALSE])
   
   out_t <- reg_forest(yt,Xt,draws=1000, type = "standard", return_trees = TRUE, steps = NULL, 
-                      weight_by_mse = FALSE, weight_pow = 2, min_obs = 50)
+                      weight_by_mse = TRUE, weight_pow = 4, min_obs = 50)
   out_w <- reg_forest(yw,Xw,draws=1000, type = "standard", return_trees = TRUE, steps = NULL, 
-                      weight_by_mse = FALSE, weight_pow = 2, min_obs = 50)
+                      weight_by_mse = TRUE, weight_pow = 4, min_obs = 50)
   out_h <- reg_forest(yh,Xh,draws=1000, type = "standard", return_trees = TRUE, steps = NULL, 
-                      weight_by_mse = FALSE, weight_pow = 2, min_obs = 50)
+                      weight_by_mse = TRUE, weight_pow = 4, min_obs = 50)
   
-  sequoia <- c(out_t$Trees, out_w$Trees, out_h$Trees)
-  XX <- as.matrix(dt_tst[ , -c(1,2), with=FALSE])
-  y_out <- StdFitField(as.matrix(dt_tst[ , -c(1,2), with=FALSE]), sequoia)
+  forest <- c(out_t$Trees, out_w$Trees, out_h$Trees)
+  weights <- c(out_t$weight, out_w$weight, out_h$weight)
+  y_out <- StdFitFieldWeight(as.matrix(dt_tst[ , -c(1,2), with=FALSE]), forest, weights)
   y_fit[j] <- tail(y_out[[1]], 1)
 }
 
@@ -100,15 +100,24 @@ for(j in seq(tst_size)){
 # backtest_one_week <- cbind(y_fit, y_true, oob)
 # write.csv(backtest_one_week, "/Users/seth/data/backtests/dg_week.csv")
 
-pretty_plot(cbind(y_fit, y_true))
 
-out$mean_abs_feature_contribution
-colnames(X)
+Fit <- data.table("fit"=c(y_fit), "true_val"=c(y_true))
+pretty_plot(Fit)
+
+out_w$mean_abs_feature_contribution
+colnames(Xw)
+
+write.csv(Fit, "/Users/seth/data/backtests/week_oos_ensemble.csv")
 
 mean((y_fit-y_true)^2)
 mean((y_true)^2)
 
-sum(sign(y_fit) == sign(y_true))
+mean(y_true)
+mean(y_fit)
+
+1 - mean((y_fit-y_true)^2)/mean((y_true)^2)
+
+mean(sign(y_fit) == sign(y_true))
 
 
 

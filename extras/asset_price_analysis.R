@@ -7,7 +7,23 @@ library(RegTree)
 library(data.table)
 
 dt <- fread("/users/seth/data/price_fcasting_data_week_2022_08_05.csv")
-names(dt)[1] <- "ref_date" # unique name
+names(dt)[1:2] <- c("ref_date", "tgt") # date and target varible
+
+# In sample over-fitting example
+dates <- dt$ref_date
+y <- dt$tgt
+X <- as.matrix(dt[,-c(1,2), with=FALSE])
+out_is <- reg_forest(y,X,draws=1000, type = "standard", return_trees = FALSE, steps = NULL, 
+                    weight_by_mse = TRUE, weight_pow = 2) # in sample example
+
+dt_is <- data.table("ref_date" = dates[out_is$idx],  "true_value" = c(out_is$true_vals),
+                    "in_sample_fit" = c(out_is$in_samp_fit))
+
+pretty_plot(tail(dt_is, 300))
+
+
+
+
 dtt <- dt[weekdays(dt$ref_date) == "Tuesday"]
 dtw <- dt[weekdays(dt$ref_date) == "Wednesday"]
 dth <- dt[weekdays(dt$ref_date) == "Thursday"]

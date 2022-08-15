@@ -6,9 +6,21 @@ RndForest <- function(y, X, min_obs=5, max_nodes=1000, draws = 1000) rforest(y, 
 MAEForest <- function(y, X, min_obs=5, max_nodes=1000, draws = 1000) maeforest(y, X, min_obs, max_nodes, draws)
 AltForest <- function(y, X, min_obs=5, max_nodes=1000, draws = 1000, geom_par = .5) rforest_alt(y, X, min_obs, max_nodes, draws, geom_par)
 FitField <- function(X,Trees) Fit_Field(X,Trees)
-FitFieldWeight <- function(X,Trees,weight) Fit_Field_Weight(X,Trees,weight)
-StdFitField <- function(X,Trees) fitfield(X,Trees)
-StdFitFieldWeight <- function(X,Trees,weight) fitfield_alt(X,Trees,weight)
+FitFieldWeight <- function(X,Trees,weight){
+  out <- Fit_Field_Weight(X,Trees,weight)
+  colnames(out[[2]]) <- colnames(X)
+  return(out)
+} 
+StdFitField <- function(X,Trees){
+  out <- fitfield_alt(X,Trees)
+  colnames(out[[2]]) <- colnames(X)
+  return(out)
+}
+StdFitFieldWeight <- function(X,Trees,weight){ 
+  out <- fitfield_alt(X,Trees,weight)
+  colnames(out[[2]]) <- colnames(X)
+  return(out)
+}
 RegTree <- function(y,X,max_nodes = 31) Reg_Tree(y,X,max_nodes)
 StdRegTree <- function(y,X,min_obs=5,max_nodes=1000) regtree(y,X,min_obs,max_nodes)
 quickreg <- function(x,y,r=0) QuickReg(x,y,r)

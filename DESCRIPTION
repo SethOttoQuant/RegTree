@@ -1,7 +1,7 @@
 Package: RegTree
 Type: Package
 Title: Regression Trees
-Version: 0.0.1
+Version: 0.0.2
 Author: Seth Leonard
 Maintainer: Seth Leonard <seth@ottoquant.com>
 Description: Random forest for continuous variables with missing observations

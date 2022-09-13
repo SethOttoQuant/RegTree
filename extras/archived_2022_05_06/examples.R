@@ -16,10 +16,10 @@ SimData <- function(n = 100){
 }
 
 SimDataNonLin <- function(n = 100){
-  X <- matrix(rnorm(n*10),n,10)
-  b1 <- c( 1, 5,-3,-1, 2,-1, 0,-3, 2, 1)
-  b2 <- c(-2,-5, 0, 2,-1,-2, 4, 3, 1,-1)
-  b3 <- c( 1, 0, 5, 0,-2, 3,-1, 0,-1, 1)
+  X <- matrix(rnorm(n*20),n,20)
+  b1 <- c( 1, 5,-3,-1, 2,-1, 0,-3, 2, 1, 1, 5, 3, 0, 2,-1, 2,-3, 0, 1)
+  b2 <- c(-2,-5, 0, 2,-1,-2, 4, 3, 1,-1, 1, 0,-2, 0, 1,-1,-2, 1, 2, 4)
+  b3 <- c( 1, 0, 5, 0,-2, 3,-1, 0,-1, 1, 0,-1, 0, 5,-2, 0, 0, 0, 1,-1)
   z <- runif(n)
   y <- X%*%b1
   y[z<1/3] <- X[z<1/3, ]%*%b2
@@ -30,17 +30,17 @@ SimDataNonLin <- function(n = 100){
               y = y))
 }
 
-SimData3 <- function(n = 100){
-  X <- matrix(rnorm(n*10),n,10)
-  b3 <- c( 1, 0, 5, 0,-2, 3,-1, 0,-1, 1)
-  y <- X%*%b3
-  y <- y + rnorm(n)
-  # X <- cbind(X,c(z))
-  return(list(X = X,
-              y = y))
-}
+# SimData3 <- function(n = 100){
+#   X <- matrix(rnorm(n*10),n,10)
+#   b3 <- c( 1, 0, 5, 0,-2, 3,-1, 0,-1, 1)
+#   y <- X%*%b3
+#   y <- y + rnorm(n)
+#   # X <- cbind(X,c(z))
+#   return(list(X = X,
+#               y = y))
+# }
 
-n <- 200
+n <- 600
 # Run a single simulation
 sim <- SimDataNonLin(n)
 X <- sim$X
@@ -88,10 +88,10 @@ n <- 200
 
 run_sim <- function(n){
   sim <- SimDataNonLin(n)
-  #sim <- SimData(n)
+  # sim <- SimData(n)
   X_train <- sim$X
   y_train <- sim$y
-  X_train[1:100,1:5] <- NA
+  X_train[1:100,1:10] <- NA
   # X_train[1:50, 2] <- NA
   
   sim <- SimDataNonLin(n)
@@ -105,11 +105,11 @@ run_sim <- function(n){
   
   # Out of Sample
   fit_reg <- FitField(X_fit,out_reg$Trees)[[1]] # for RegForest()
-  fit_std <- StdFitFieldWeight(X_fit,out_std$Trees, weight_nodes = FALSE)[[1]]
+  fit_std <- StdFitField(X_fit,out_std$Trees, weight_nodes = FALSE)[[1]]
   # fit2 <- StdFitField(X_fit,Trees2) # for RndForest()
   # ts.plot(cbind(fit_std,y_true), col = c("red", "blue"))
   
-  X_train[1:100, 1:5] <- matrix(1,100,1)%x%t(colMeans(X_train[101:n, 1:5]))
+  X_train[1:100, 1:10] <- matrix(1,100,1)%x%t(colMeans(X_train[101:n, 1:10]))
   # X_train <- X_train[51:100,]
   # y_train <- y_train[51:100]
   # X_train <- X_train[ , -seq(10)]

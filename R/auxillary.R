@@ -2,7 +2,7 @@
 
 # Calls for C++ functions
 RegForest <- function(y,X, min_obs=15, max_nodes = 31, draws = 1000) Reg_Forest(y,X,min_obs,max_nodes,draws)
-RndForest <- function(y, X, min_obs=5, max_nodes=1000, draws = 1000) rforest(y, X, min_obs, max_nodes, draws)
+RndForest <- function(y, X, max_obs=15, min_obs=2, max_nodes=1000, draws = 1000, weight_nodes = FALSE) rforest(y, X, max_obs, min_obs, max_nodes, draws, weight_nodes)
 MAEForest <- function(y, X, min_obs=5, max_nodes=1000, draws = 1000) maeforest(y, X, min_obs, max_nodes, draws)
 AltForest <- function(y, X, min_obs=5, max_nodes=1000, draws = 1000, geom_par = .5) rforest_alt(y, X, min_obs, max_nodes, draws, geom_par)
 FitField <- function(X,Trees) Fit_Field(X,Trees)
@@ -11,13 +11,13 @@ FitFieldWeight <- function(X,Trees,weight){
   colnames(out[[2]]) <- colnames(X)
   return(out)
 } 
-StdFitField <- function(X,Trees){
-  out <- fitfield_alt(X,Trees)
+StdFitField <- function(X, Trees, weight_nodes=FALSE){
+  out <- fitfield(X,Trees,weight_nodes)
   colnames(out[[2]]) <- colnames(X)
   return(out)
 }
-StdFitFieldWeight <- function(X,Trees,weight){ 
-  out <- fitfield_alt(X,Trees,weight)
+StdFitFieldWeight <- function(X,Trees,weight,weight_nodes=FALSE){ 
+  out <- fitfield_alt(X,Trees,weight,weight_nodes)
   colnames(out[[2]]) <- colnames(X)
   return(out)
 }
@@ -105,9 +105,9 @@ all_splits <- function(Trees, X_names = NULL, regression = TRUE){
   return(sort(tab, decreasing = TRUE))
 }
 
-reg_forest <- function(y, X, min_obs="auto", max_nodes = "auto", draws = 1000, 
+reg_forest <- function(y, X, max_obs = "auto", min_obs="auto", max_nodes = "auto", draws = 1000, 
                        steps = 1, type = c("standard", "regression", "alt", "mae"), return_trees = TRUE, 
-                       orthogonal = FALSE, weight_by_mse = TRUE, geom_par=.5, weight_pow = 2){
+                       orthogonal = FALSE, weight_by_mse = TRUE, geom_par=.5, weight_pow = 2, weight_nodes=FALSE){
   type <- match.arg(type)
   y <- c(y)
   X <- as.matrix(X)
@@ -133,21 +133,30 @@ reg_forest <- function(y, X, min_obs="auto", max_nodes = "auto", draws = 1000,
       max_nodes <- 1000
     }
   }
-  if(min_obs == "auto"){
+  if(max_obs == "auto"){
     if(type == "regression"){
-      min_obs <- 15
+      max_obs <- 15
     }else{
-      min_obs <- 5
+      max_obs <- 5
     }
   }
+  if(min_obs == "auto"){
+    if(type == "regression"){
+      min_obs <- 5
+    }else{
+      min_obs <- 2
+    }
+  }
+  if(min_obs>=max_obs/2) stop("'max_obs' must be more than two times 'min_obs'")
+  
   if(type == "regression"){
-    rf_out <- RegForest(y[y_finite], X[y_finite, ], min_obs, max_nodes, draws) # estimate model
+    rf_out <- RegForest(y[y_finite], X[y_finite, ], max_obs, max_nodes, draws) # estimate model
   }else if(type=="standard"){
-    rf_out <- RndForest(y[y_finite], X[y_finite, ], min_obs, max_nodes, draws) # estimate model
+    rf_out <- RndForest(y[y_finite], X[y_finite, ], max_obs, min_obs, max_nodes, draws, weight_nodes) # estimate model
   }else if(type=="alt"){
-    rf_out <- AltForest(y[y_finite], X[y_finite, ], min_obs, max_nodes, draws, geom_par) # estimate model
+    rf_out <- AltForest(y[y_finite], X[y_finite, ], max_obs, max_nodes, draws, geom_par) # estimate model
   }else if(type=="mae"){
-    rf_out <- MAEForest(y[y_finite], X[y_finite, ], min_obs, max_nodes, draws) # estimate model
+    rf_out <- MAEForest(y[y_finite], X[y_finite, ], max_obs, max_nodes, draws) # estimate model
   }
   
   if(weight_by_mse){

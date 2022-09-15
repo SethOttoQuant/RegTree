@@ -107,7 +107,7 @@ all_splits <- function(Trees, X_names = NULL, regression = TRUE){
 
 reg_forest <- function(y, X, max_obs = "auto", min_obs="auto", max_nodes = "auto", draws = 1000, 
                        steps = 1, type = c("standard", "regression", "alt", "mae"), return_trees = TRUE, 
-                       orthogonal = FALSE, weight_by_mse = TRUE, geom_par=.5, weight_pow = 2, weight_nodes=FALSE){
+                       orthogonal = FALSE, weight_by_mse = FALSE, geom_par=.5, weight_pow = 2, weight_nodes=FALSE){
   type <- match.arg(type)
   y <- c(y)
   X <- as.matrix(X)
@@ -137,14 +137,14 @@ reg_forest <- function(y, X, max_obs = "auto", min_obs="auto", max_nodes = "auto
     if(type == "regression"){
       max_obs <- 15
     }else{
-      max_obs <- 5
+      max_obs <- 15
     }
   }
   if(min_obs == "auto"){
     if(type == "regression"){
       min_obs <- 5
     }else{
-      min_obs <- 2
+      min_obs <- 5
     }
   }
   if(min_obs>=max_obs/2) stop("'max_obs' must be more than two times 'min_obs'")
@@ -202,7 +202,7 @@ reg_forest <- function(y, X, max_obs = "auto", min_obs="auto", max_nodes = "auto
     }
   }
 
-  out <- list(in_samp_fit = fit, true_vals = y, mean_abs_feature_contribution = colMeans(abs(fc_fit)))
+  out <- list(in_sample_fit = fit, true_vals = y, mean_abs_feature_contribution = colMeans(abs(fc_fit)))
   if(return_trees) out$Trees <- rf_out$Trees
   if(weight_by_mse) out$weight <- weight
   out$MSE <- rf_out$MSE

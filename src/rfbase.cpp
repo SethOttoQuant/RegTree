@@ -169,7 +169,7 @@ arma::field<arma::vec> fitvec(arma::vec x,
   double y = Tree(0,5); double y_old=Tree(0,5);
   field<vec> out(2); // out(0) is value of y, out(1) is feature contributions
   vec fc(x.n_elem, fill::zeros); // vector of feature contributions
-  while(Tree(j,9) != 1 && it<maxit){
+  while(Tree(j,9) == 0 && it<maxit){
     if(!std::isfinite(x(Tree(j,0)))){
       break;
     }else{
@@ -180,6 +180,7 @@ arma::field<arma::vec> fitvec(arma::vec x,
       }
       y = Tree(j,5);
       fc(Tree(j_old,0)) += y - y_old;
+      // Rcpp::Rcout << "j = " << j << "; y = " << y << "; y_old = " << y_old << endl;
       y_old = y;
       j_old = j;
       it++;
@@ -189,6 +190,7 @@ arma::field<arma::vec> fitvec(arma::vec x,
   out[1] = fc;
   return(out);
 }
+
 
 // Fit a single observation using the estimated tree weighting by var
 // [[Rcpp::export]]
@@ -206,7 +208,7 @@ arma::field<arma::vec> weightvec(arma::vec x,
   // w_out(0) = 1;
   // m_out(0) = Tree(0,5);
   // ------------------------------------------------
-  while(Tree(j,9) != 1 && it<maxit){
+  while(Tree(j,9) == 0 && it<maxit){
     // Rcpp::Rcout << it << endl;
     if(!std::isfinite(x(Tree(j,0)))){
       break;
@@ -250,7 +252,7 @@ arma::field<arma::vec> poolvec(arma::vec x,
   w_out(0) = w;
   m_out(0) = Tree(0,5);
   // ------------------------------------------------
-  while(Tree(j,9) != 1 && it<maxit){
+  while(Tree(j,9) == 0 && it<maxit){
     if(!std::isfinite(x(Tree(j,0)))){
       break;
     }else{
@@ -341,12 +343,12 @@ Rcpp::List rforest(arma::vec y, // response (no missing obs)
   for(uword j = 0; j<draws; j++){
     to_keep = select_rnd(T, ceil(0.632*T));
     Tree = regtree(y, X, to_keep(0), max_obs, min_obs, max_nodes);
-    tmp = fitmat(trans(X.rows(to_keep(1))), Tree, weight);
+    tmp = fitmat(trans(X.rows(to_keep(1))), Tree, weight);  // oob results
     oob.fill(datum::nan);
-    oob(to_keep(1)) = tmp(0);
-    mse(j) = mean(square(y(to_keep(1)) - tmp(0)));
-    fc.fill(datum::nan);
-    fc.rows(to_keep(1)) = trans(tmp(1));
+    oob(to_keep(1)) = tmp(0); // fitted vals
+    mse(j) = mean(square(y(to_keep(1)) - tmp(0))); // oob mse
+    fc.fill(datum::nan);  
+    fc.rows(to_keep(1)) = trans(tmp(1));  
     OOB.col(j) = oob;
     FC.slice(j) = fc;
     Trees(j) = Tree;

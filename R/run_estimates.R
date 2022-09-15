@@ -1,16 +1,17 @@
 
 run_forecast <- function(tgt, dt, lib, detrend = FALSE, 
                          type = c("standard", "regression", "alt"),
-                         as_of_date = NULL, weight_by_mse = FALSE, geom_par=.5, 
+                         as_of_date = NULL,  
+                         weight_by_mse = FALSE, geom_par=.5, 
                          weight_pow = 2){
   type <- match.arg(type)
   if(!"series_name"%in%names(dt)) stop("Column 'series_name' is required")
   if(!"ref_date"%in%names(dt)) stop("Column 'ref_date' is required")
   if(!"value"%in%names(dt)) stop("Column 'value' is required")
   if(!is.null(as_of_date)){
-    if(!"as_of"%in%names(dt)) stop("Column 'as_of' is required when 'as_of_date' is not NULL")
+    if(!"pub_date"%in%names(dt)) stop("Column 'pub_date' is required when 'as_of_date' is not NULL")
     dt <- data.table(dt)
-    dt <- dt[as_of <= as_of_date] # drop data that would not have been observed
+    dt <- dt[pub_date <= as_of_date] # drop data that would not have been observed
   }
   detrend = as.logical(detrend)
   MF <- process_MF(LHS = dt[series_name == tgt], RHS = dt[series_name != tgt], LHS_lags = 3, pub_date_name = NULL)
@@ -31,10 +32,14 @@ run_forecast <- function(tgt, dt, lib, detrend = FALSE,
   out <- reg_forest(y, W, steps = 1, draws = 2000, type=type, 
                     weight_by_mse = weight_by_mse, geom_par=geom_par, 
                     weight_pow = weight_pow) # estimate model for one step ahead; pretty slow
+  
+  # ts.plot(out$oob_feature_contribution[ , c("gasoline prices sa 0", "consumer price index cpi 1")], col = c("red", "blue"))
+  
 
-  last_obs <- nrow(out$in_samp_fit)
-  raw_res <- data.table("ref_date" = dates[seq(last_obs)], "fit" = out$in_sample_fit, "true" = out$true_vals)
+  last_obs <- nrow(out$in_sample_fit)
+  raw_res <- data.table("ref_date" = dates[seq(last_obs)], "fit" = c(out$in_sample_fit), "true" = c(out$true_vals))
   # pretty_plot(tail(raw_res, 120))
+  # pretty_plot(raw_res)
   
   df <- merge(data.table("ref_date"=dates), X[series_name == tgt0], 
               by = "ref_date", all.x = TRUE)
@@ -62,7 +67,7 @@ run_forecast <- function(tgt, dt, lib, detrend = FALSE,
   
   # leave things log differenced (take diffs is either 1 or 0)
   
-  if(lib[series_name == tgt]$take_diffs==10){
+  if(lib[series_name == tgt]$take_diffs==1){
     fit_level <-shift(df$level_value, 1)[seq(last_obs)]+fit
     upper_bound_level <-shift(df$level_value, 1)[seq(last_obs)]+upper_bound
     lower_bound_level <-shift(df$level_value, 1)[seq(last_obs)]+lower_bound
@@ -71,7 +76,7 @@ run_forecast <- function(tgt, dt, lib, detrend = FALSE,
     upper_bound_level <- upper_bound
     lower_bound_level <- lower_bound
   }
-  if(lib[series_name == tgt]$take_logs==10){
+  if(lib[series_name == tgt]$take_logs==1){
     fit_level <- exp(fit_level)
     upper_bound_level <- exp(upper_bound_level)
     lower_bound_level <- exp(lower_bound_level)

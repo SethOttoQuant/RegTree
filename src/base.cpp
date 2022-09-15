@@ -217,7 +217,7 @@ arma::field<arma::vec> FitVec(arma::vec x,
   vec fc(x.n_elem, fill::zeros); // vector of feature contributions
   double c; // change in y at current node
   // The first row of Tree needs to be treated differently
-  if(Tree(0,9)==1 || !std::isfinite(x(i))){ // if there is only one node
+  if(Tree(0,9) != 0 || !std::isfinite(x(i))){ // if there is only one node
     out[0] = y;
     out[1] = fc;
     return(out);
@@ -232,7 +232,7 @@ arma::field<arma::vec> FitVec(arma::vec x,
     fc(i) += c; 
     y += c;  
     i = Tree(j,0); // next cut variable index
-    if(Tree(j,9)==1 || !std::isfinite(x(i))){ 
+    if(Tree(j,9) != 0 || !std::isfinite(x(i))){ 
       out[0] = y;
       out[1] = fc;
       return(out);

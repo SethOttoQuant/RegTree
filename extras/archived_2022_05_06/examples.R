@@ -103,7 +103,7 @@ run_sim <- function(n){
   # sim <- SimData(n)
   X_train <- sim$X
   y_train <- sim$y
-  # X_train[1:100,1:10] <- NA
+  X_train[1:100,1] <- NA
   # X_train[1:50, 2] <- NA
   
   sim <- SimDataNonLin(n, has_na = FALSE)
@@ -121,7 +121,7 @@ run_sim <- function(n){
   # fit2 <- StdFitField(X_fit,Trees2) # for RndForest()
   # ts.plot(cbind(fit_std,y_true), col = c("red", "blue"))
   # isna <- is.na(X_train[,1])
-  # X_train[1:100, 1:10] <- matrix(1,sum(isna),1)%x%t(colMeans(X_train[, 1:10, drop=FALSE], na.rm=TRUE))
+  X_train[1:100, 1] <- matrix(1,100,1)%x%t(colMeans(X_train[, 1, drop=FALSE], na.rm=TRUE))
   # X_train <- X_train[51:100,]
   # y_train <- y_train[51:100]
   # X_train <- X_train[ , -seq(10)]

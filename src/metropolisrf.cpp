@@ -6,12 +6,16 @@ using namespace arma;
 using namespace Rcpp;
 #include "utils.h"
 
+
+// This function randomly draws a cut point where cut points with a higher
+// reduction in MSE have a higher probability of being selected according to
+// the weight_pow parameter
 // [[Rcpp::export]]
 arma::vec select_cut(arma::vec x, // predictor
                      arma::vec y, // response
                      double prior_shrink, // prior shrinkage par
                      double my,
-                     double weight_pow){ // prior for y
+                     double weight_pow){ // determines probability of cut points
   uvec obs = find_finite(x);
   uvec not_obs = find_nonfinite(x);
   double m_na=0, vnce_na = 0, m_leq=0, m_g=0;
@@ -86,7 +90,8 @@ arma::field<arma::vec> cutpars(arma::vec x, // predictor
   out(2) = conv_to<vec>::from(ind(idx(span(imin+1,n-1)))); // index of original dataset >
   return(out); 
 }
-// find the best series in X to identify y
+// draw a series in X to identify y; probability of drawing "best" is determined
+// by the weight_pow parameter
 // [[Rcpp::export]]
 arma::field<arma::vec> selectsplit(arma::mat X, // predictors
                                    arma::vec y, // response
@@ -120,10 +125,11 @@ arma::field<arma::vec> selectsplit(arma::mat X, // predictors
 arma::mat simtree(arma::vec y, // response (no missing obs)
           arma::mat X, // predictors (missing obs OK), obs in rows series in cols
           arma::mat Tree, // mat Tree(max_nodes, 10, fill::zeros);
-          arma::uword max_nodes,
           double prior_shrink = 0,
           double weight_pow=2,
+          double accept_par=1,
           arma::uword j=0){
+  uword max_nodes = Tree.n_rows;
   double xnc = X.n_cols;
   double my=mean(y); double vy = mean(square(y-my));
   if(j==0){
@@ -137,11 +143,30 @@ arma::mat simtree(arma::vec y, // response (no missing obs)
   I(0) = regspace<uvec>(0,X.n_rows-1); // index in original data 
   field<vec> tmp; // temp output from best_splits()
   uword i = j;  // next nodes  
-  
   // --------------------------------------
-  // Need to wipe out any nodes that come after the node we are splitting on and order the node we are splitting on last. Not trivial. 
+  // Need to wipe out any nodes that come after (and including) the start node and reorganize the tree 
+  // --------------------------------------
+  uvec to_wipe(max_nodes, fill::zeros);
+  uword g=0;
+  uword h=1;
+  to_wipe[0]=j;
+  while(h<max_nodes){
+    if(Tree(to_wipe[g], 8) == 0){
+      to_wipe[h] = Tree(to_wipe[g], 2); 
+      to_wipe[h+1] = Tree(to_wipe[g], 3);
+      h+=2;
+    }
+    g++;
+    if(g==h) break;  // all lower nodes selected
+  }
+  Tree.rows(to_wipe.rows(0, h)) = zeros<mat>(h, 10);
+  uvec sort_idx = sort_index(Tree.col(9), "descend");
+  Tree = Tree.rows(sort_idx); // order completed nodes first
+  // --------------------------------------
+  // Need to recover indexes I for terminal nodes, or not use indexes
   // --------------------------------------
   
+    
   
   while(i+2<max_nodes){
     tmp = selectsplit(X.rows(I(j)), y(I(j)), I(j), prior_shrink, my, weight_pow);
@@ -160,23 +185,26 @@ arma::mat simtree(arma::vec y, // response (no missing obs)
       Tree(i+2,6) = par(4); // sig if >
       Tree(i+1,7) = par(7); // nobs if <
       Tree(i+2,7) = par(8); // nobs if >
-      Tree(i+1,8) = 1 - welch_t(par(1), par(2), par(3), par(4), par(7), par(8)); // weight on this node (1 - for previous node)
-      Tree(i+2,8) =  Tree(i+1,8);  // weight on this node (1 - for previous node)
-      Tree(i+1,9) = 1; // terminal node (leaf)
-      Tree(i+2,9) = 1; // terminal node (leaf)
+      // Tree(i+1,8) = 1 - welch_t(par(1), par(2), par(3), par(4), par(7), par(8)); // weight on this node (1 - for previous node)
+      // Tree(i+2,8) =  Tree(i+1,8);  // weight on this node (1 - for previous node)
+      Tree(i+1,8) = 1; // terminal node (leaf)
+      Tree(i+2,8) = 1; // terminal node (leaf)
       I(i+1) = conv_to<uvec>::from(tmp(1)); // indexes <=
       I(i+2) = conv_to<uvec>::from(tmp(2)); // indexes >
       i += 2; // split result in 2 new rows
     }else{
-      Tree(j,9) = 2; // terminal node with no more possible splits
+      Tree(j,8) = 2; // terminal node with no more possible splits
+    }
+    for(h=0; h<max_nodes; h++){
+      Tree(h,9) = max_nodes - h; // descending index for sorting (because blank is zero)
     }
     tmp_tree = Tree.rows(0,i);
-    leaf_idx = find(tmp_tree.col(9) == 1 && tmp_tree.col(7) > 3); // index of terminal nodes in Tree matrix with enough obs
+    leaf_idx = find(tmp_tree.col(8) == 1 && tmp_tree.col(7) > 3); // index of terminal nodes in Tree matrix with enough obs
     leaves = Tree.rows(leaf_idx); // terminal nodes (i.e. leaves). 
     if(leaf_idx.n_elem==0) break;
     j = leaf_idx(floor(randu()*leaf_idx.n_elem)); // index_max(leaves.col(6)) totally randomized for now, in the future might want to be more selective. 
   }
-  return(Tree.rows(0,i));
+  return(Tree);
 }
 // [[Rcpp::export]]
 arma::field<mat> simforest(arma::vec y, // response (no missing obs)
@@ -187,7 +215,7 @@ arma::field<mat> simforest(arma::vec y, // response (no missing obs)
                     arma::uword burn = 500,
                     arma::uword reps = 1000){
   uword max_nodes = 2*max_splits + 1;
-  mat Tree(max_nodes, 10, fill::zeros);
+  mat Tree(max_nodes, 9, fill::zeros);
   arma::uword starting_node=0;
   // Burn in
   for(uword j=0; j<burn; j++){

@@ -12,9 +12,9 @@ arma::field<arma::vec> poolvec(arma::vec x,
                               arma::uword maxit = 1000);
 arma::field<arma::mat> fitmat(arma::mat X,
                               arma::mat Tree,
-                              bool pool=false);
+                              bool weight=false);
 arma::field<arma::mat> fitfield(arma::mat X,
                                 arma::field<arma::mat> Trees,
-                                bool pool=false);
+                                bool weight=false);
 #endif
 

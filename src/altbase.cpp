@@ -216,8 +216,7 @@ arma::mat regtree_alt(arma::vec y, // response (no missing obs)
 // [[Rcpp::export]]
 arma::field<arma::mat> fitfield_alt(arma::mat X,
                   arma::field<arma::mat> Trees,
-                  arma::vec weight,
-                  bool weight_nodes=false){ // length must agree with slices of Tree, must have mean 1
+                  arma::vec weight){ // length must agree with slices of Tree, must have mean 1
   // uword k = Trees.n_elem;
   vec Mu(X.n_rows, fill::zeros); // mean (ie prediction)
   mat FC(X.n_cols, X.n_rows, fill::zeros); // feature contribution
@@ -225,7 +224,7 @@ arma::field<arma::mat> fitfield_alt(arma::mat X,
   field<mat> out(2);
   X = trans(X); //transpose for FitMat
   for(uword j=0; j<Trees.n_elem; j++){
-    tmp = fitmat(X, Trees(j), weight_nodes);
+    tmp = fitmat(X, Trees(j));
     Mu += tmp(0)*weight(j);
     FC += tmp(1)*weight(j);
   }

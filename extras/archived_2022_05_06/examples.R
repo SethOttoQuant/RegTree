@@ -95,7 +95,7 @@ mean((y_true - fit_std[[1]])^2)
 # t_tst(1,3)
 
 
-# out <- StdFitFieldWeight(X_fit, tst$Trees)
+# Run a bunch of simulations
 n <- 200
 
 run_sim <- function(n){

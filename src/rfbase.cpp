@@ -141,18 +141,18 @@ arma::mat regtree(arma::vec y, // response (no missing obs)
       Tree(i+2,6) = par(4); // sig if >
       Tree(i+1,7) = par(7); // nobs if <
       Tree(i+2,7) = par(8); // nobs if >
-      Tree(i+1,8) = 1 - welch_t(par(1), par(2), par(3), par(4), par(7), par(8)); // weight on this node (1 - for previous node)
-      Tree(i+2,8) =  Tree(i+1,8);  // weight on this node (1 - for previous node)
-      Tree(i+1,9) = 1; // terminal node (leaf)
-      Tree(i+2,9) = 1; // terminal node (leaf)
+      //Tree(i+1,8) = 1 - welch_t(par(1), par(2), par(3), par(4), par(7), par(8)); // weight on this node (1 - for previous node)
+      //Tree(i+2,8) =  Tree(i+1,8);  // weight on this node (1 - for previous node)
+      Tree(i+1,8) = 1; // terminal node (leaf)
+      Tree(i+2,8) = 1; // terminal node (leaf)
       I(i+1) = conv_to<uvec>::from(tmp(1)); // indexes <=
       I(i+2) = conv_to<uvec>::from(tmp(2)); // indexes >
       i += 2; // split result in 2 new rows
     }else{
-      Tree(j,9) = 2; // terminal node with no more possible splits
+      Tree(j,8) = 2; // terminal node with no more possible splits
     }
     tmp_tree = Tree.rows(0,i);
-    leaf_idx = find(tmp_tree.col(9) == 1 && tmp_tree.col(7) > max_obs); // index of terminal nodes in Tree matrix with enough obs
+    leaf_idx = find(tmp_tree.col(8) == 1 && tmp_tree.col(7) > max_obs); // index of terminal nodes in Tree matrix with enough obs
     leaves = Tree.rows(leaf_idx); // terminal nodes (i.e. leaves). 
     if(leaf_idx.n_elem==0) break;
     j = leaf_idx(index_max(leaves.col(6))); // index of leaf with max volatility to work on next
@@ -169,7 +169,7 @@ arma::field<arma::vec> fitvec(arma::vec x,
   double y = Tree(0,5); double y_old=Tree(0,5);
   field<vec> out(2); // out(0) is value of y, out(1) is feature contributions
   vec fc(x.n_elem, fill::zeros); // vector of feature contributions
-  while(Tree(j,9) == 0 && it<maxit){
+  while(Tree(j,8) == 0 && it<maxit){
     if(!std::isfinite(x(Tree(j,0)))){
       break;
     }else{
@@ -192,108 +192,106 @@ arma::field<arma::vec> fitvec(arma::vec x,
 }
 
 
-// Fit a single observation using the estimated tree weighting by var
-// [[Rcpp::export]]
-arma::field<arma::vec> weightvec(arma::vec x,
-                               arma::mat Tree,
-                               arma::uword maxit = 1000){
-  uword j=0; uword j_old=0; uword it=1;
-  double y = Tree(0,5);  // unconditional mean
-  double y_old = y;  // used for feature contributions
-  field<vec> out(2); // out(0) is value of y, out(1) is feature contributions
-  vec fc(x.n_elem, fill::zeros); // vector of feature contributions
-  // ---------------- testing -----------------------
-  // vec w_out(Tree.n_rows, fill::zeros);
-  // vec m_out(Tree.n_rows, fill::zeros);
-  // w_out(0) = 1;
-  // m_out(0) = Tree(0,5);
-  // ------------------------------------------------
-  while(Tree(j,9) == 0 && it<maxit){
-    // Rcpp::Rcout << it << endl;
-    if(!std::isfinite(x(Tree(j,0)))){
-      break;
-    }else{
-      if(x(Tree(j,0))>Tree(j,1)){ // if geq
-        j = Tree(j,3); // new node
-      }else{ // else if leq
-        j = Tree(j,2);
-      }
-      y = Tree(j,5)*Tree(j,8) + (1-Tree(j,8))*y; // mean times weight
-      fc(Tree(j_old,0)) += y - y_old; // fc times weight
-      // w_out(it) = Tree(j,8);
-      // m_out(it) = Tree(j,5);
-      y_old = y;
-      j_old = j;
-      it++;
-    }
-  }
-  out[0] = y;
-  out[1] = fc;
-  // out[2] = w_out;
-  // out[3] = m_out;
-  return(out);
-}
+// // Fit a single observation using the estimated tree weighting by var
+// // [[Rcpp::export]]
+// arma::field<arma::vec> weightvec(arma::vec x,
+//                                arma::mat Tree,
+//                                arma::uword maxit = 1000){
+//   uword j=0; uword j_old=0; uword it=1;
+//   double y = Tree(0,5);  // unconditional mean
+//   double y_old = y;  // used for feature contributions
+//   field<vec> out(2); // out(0) is value of y, out(1) is feature contributions
+//   vec fc(x.n_elem, fill::zeros); // vector of feature contributions
+//   // ---------------- testing -----------------------
+//   // vec w_out(Tree.n_rows, fill::zeros);
+//   // vec m_out(Tree.n_rows, fill::zeros);
+//   // w_out(0) = 1;
+//   // m_out(0) = Tree(0,5);
+//   // ------------------------------------------------
+//   while(Tree(j,9) == 0 && it<maxit){
+//     // Rcpp::Rcout << it << endl;
+//     if(!std::isfinite(x(Tree(j,0)))){
+//       break;
+//     }else{
+//       if(x(Tree(j,0))>Tree(j,1)){ // if geq
+//         j = Tree(j,3); // new node
+//       }else{ // else if leq
+//         j = Tree(j,2);
+//       }
+//       y = Tree(j,5)*Tree(j,8) + (1-Tree(j,8))*y; // mean times weight
+//       fc(Tree(j_old,0)) += y - y_old; // fc times weight
+//       // w_out(it) = Tree(j,8);
+//       // m_out(it) = Tree(j,5);
+//       y_old = y;
+//       j_old = j;
+//       it++;
+//     }
+//   }
+//   out[0] = y;
+//   out[1] = fc;
+//   // out[2] = w_out;
+//   // out[3] = m_out;
+//   return(out);
+// }
 
-// Fit a single observation using the estimated tree weighting by var
-// [[Rcpp::export]]
-arma::field<arma::vec> poolvec(arma::vec x,
-                              arma::mat Tree,
-                              arma::uword maxit = 1000){
-  uword j=0; uword j_old=0; uword it=1;
-  double w = (Tree(0,7)-1)/Tree(0,6); // weight for this node
-  double y = Tree(0,5)*w;  // unconditional mean times weight
-  double W = w; // this will be sum of all weights
-  double y_old = y/W;  // used for feature contributions
-  field<vec> out(4); // out(0) is value of y, out(1) is feature contributions
-  vec fc(x.n_elem, fill::zeros); // vector of feature contributions
-  // ---------------- testing -----------------------
-  vec w_out(Tree.n_rows, fill::zeros);
-  vec m_out(Tree.n_rows, fill::zeros);
-  w_out(0) = w;
-  m_out(0) = Tree(0,5);
-  // ------------------------------------------------
-  while(Tree(j,9) == 0 && it<maxit){
-    if(!std::isfinite(x(Tree(j,0)))){
-      break;
-    }else{
-      if(x(Tree(j,0))>Tree(j,1)){ // if geq
-        j = Tree(j,3); // new node
-      }else{ // else if leq
-        j = Tree(j,2);
-      }
-      w = (Tree(j,7)-1)/Tree(j,6); // weight for this (new) node
-      y += Tree(j,5)*w; // mean times weight
-      W += w; // sum of all weights
-      fc(Tree(j_old,0)) += w*(y/W - y_old); // fc times weight
-      w_out(it) = w;
-      m_out(it) = Tree(j,5);
-      y_old = y/W;
-      j_old = j;
-      it++;
-    }
-  }
-  out[0] = y/W;
-  out[1] = fc/W;
-  out[2] = w_out;
-  out[3] = m_out;
-  return(out);
-}
+// // Fit a single observation using the estimated tree weighting by var
+// // [[Rcpp::export]]
+// arma::field<arma::vec> poolvec(arma::vec x,
+//                               arma::mat Tree,
+//                               arma::uword maxit = 1000){
+//   uword j=0; uword j_old=0; uword it=1;
+//   double w = (Tree(0,7)-1)/Tree(0,6); // weight for this node
+//   double y = Tree(0,5)*w;  // unconditional mean times weight
+//   double W = w; // this will be sum of all weights
+//   double y_old = y/W;  // used for feature contributions
+//   field<vec> out(4); // out(0) is value of y, out(1) is feature contributions
+//   vec fc(x.n_elem, fill::zeros); // vector of feature contributions
+//   // ---------------- testing -----------------------
+//   vec w_out(Tree.n_rows, fill::zeros);
+//   vec m_out(Tree.n_rows, fill::zeros);
+//   w_out(0) = w;
+//   m_out(0) = Tree(0,5);
+//   // ------------------------------------------------
+//   while(Tree(j,9) == 0 && it<maxit){
+//     if(!std::isfinite(x(Tree(j,0)))){
+//       break;
+//     }else{
+//       if(x(Tree(j,0))>Tree(j,1)){ // if geq
+//         j = Tree(j,3); // new node
+//       }else{ // else if leq
+//         j = Tree(j,2);
+//       }
+//       w = (Tree(j,7)-1)/Tree(j,6); // weight for this (new) node
+//       y += Tree(j,5)*w; // mean times weight
+//       W += w; // sum of all weights
+//       fc(Tree(j_old,0)) += w*(y/W - y_old); // fc times weight
+//       w_out(it) = w;
+//       m_out(it) = Tree(j,5);
+//       y_old = y/W;
+//       j_old = j;
+//       it++;
+//     }
+//   }
+//   out[0] = y/W;
+//   out[1] = fc/W;
+//   out[2] = w_out;
+//   out[3] = m_out;
+//   return(out);
+// }
 
 // Fit a vector of observations using the estimated tree
 // [[Rcpp::export]]
 arma::field<arma::mat> fitmat(arma::mat X,
-                              arma::mat Tree,
-                              bool weight=false){ // bool T/F
+                              arma::mat Tree){ // bool weight=false
   vec Mu(X.n_cols);
   field<vec> tmp;
   mat FC(X.n_rows, X.n_cols, fill::zeros);
   field<mat> out(2);
   for(uword j=0; j<X.n_cols; j++){
-    if(weight){
-      tmp = weightvec(X.col(j), Tree);
-    }else{
-      tmp = fitvec(X.col(j), Tree);
-    }
+    // if(weight){
+    //   tmp = weightvec(X.col(j), Tree);
+    // }else{}
+    tmp = fitvec(X.col(j), Tree);
     Mu(j) = as_scalar(tmp(0));
     FC.col(j) = tmp(1);
   }
@@ -304,8 +302,7 @@ arma::field<arma::mat> fitmat(arma::mat X,
 // Fit output from RegForest
 // [[Rcpp::export]]
 arma::field<arma::mat> fitfield(arma::mat X,
-                                arma::field<arma::mat> Trees,
-                                bool weight = false){ // bool T/F
+                                arma::field<arma::mat> Trees){ // bool T/F
   uword k = Trees.n_elem;
   vec Mu(X.n_rows, fill::zeros); // mean (ie prediction)
   mat FC(X.n_cols, X.n_rows, fill::zeros); // feature contribution
@@ -313,7 +310,7 @@ arma::field<arma::mat> fitfield(arma::mat X,
   field<mat> out(2);
   X = trans(X); //transpose for FitMat
   for(uword j=0; j<Trees.n_elem; j++){
-    tmp = fitmat(X, Trees(j), weight);
+    tmp = fitmat(X, Trees(j));
     Mu += tmp(0);
     FC += tmp(1);
   }
@@ -329,8 +326,7 @@ Rcpp::List rforest(arma::vec y, // response (no missing obs)
                    arma::uword max_obs = 20,
                    arma::uword min_obs = 5,
                    arma::uword max_nodes = 1000,
-                   arma::uword draws = 1000,
-                   bool weight = false){ // T/F use pooled forecasts
+                   arma::uword draws = 1000){ 
   field<mat> Trees(draws);
   double T = X.n_rows;
   vec oob(T); mat Tree;
@@ -343,10 +339,10 @@ Rcpp::List rforest(arma::vec y, // response (no missing obs)
   for(uword j = 0; j<draws; j++){
     to_keep = select_rnd(T, ceil(0.632*T));
     Tree = regtree(y, X, to_keep(0), max_obs, min_obs, max_nodes);
-    tmp = fitmat(trans(X.rows(to_keep(1))), Tree, weight);  // oob results
+    tmp = fitmat(trans(X.rows(to_keep(1))), Tree);  // oob results
     oob.fill(datum::nan);
     oob(to_keep(1)) = tmp(0); // fitted vals
-    mse(j) = mean(square(y(to_keep(1)) - tmp(0))); // oob mse
+    mse(j) = mean(square(y(to_keep(1)) - tmp(0)))/(to_keep(1).n_elem); // oob mse
     fc.fill(datum::nan);  
     fc.rows(to_keep(1)) = trans(tmp(1));  
     OOB.col(j) = oob;

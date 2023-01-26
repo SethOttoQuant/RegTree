@@ -5,6 +5,13 @@
 using namespace arma;
 
 //[[Rcpp::export]]
+arma::uvec sort_em(arma::vec v
+){
+  uvec out = find(v);
+  return(out);
+}
+
+//[[Rcpp::export]]
 double welch_t(double m_1,  // mean 1
                   double m_2, // mean 2
                   double sig_1,  // squared error 1
